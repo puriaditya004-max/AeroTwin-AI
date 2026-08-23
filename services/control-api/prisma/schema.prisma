@@ -1,0 +1,205 @@
+// AeroTwin AI - Control API database schema
+// Minimum entities per architecture doc: Engine/Mission, Telemetry, TwinSnapshot,
+// HealthSnapshot, Prediction (Fault+RUL), Advisory/AuditEntry, User (RBAC).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & RBAC
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(VIEWER)
+  createdAt    DateTime @default(now())
+
+  auditEntries AuditEntry[]
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Engine / Mission
+// ---------------------------------------------------------------------------
+
+model Engine {
+  id        String   @id // matches engineId used across all contracts, e.g. "ENG-001"
+  label     String?
+  createdAt DateTime @default(now())
+
+  missions Mission[]
+
+  @@map("engines")
+}
+
+enum MissionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  ABORTED
+}
+
+model Mission {
+  id         String        @id // matches missionId used across all contracts, e.g. "MSN-OILPRESS-001"
+  engineId   String
+  engine     Engine        @relation(fields: [engineId], references: [id])
+  scenarioId String? // which of the 5 mandatory scenarios, for replay
+  status     MissionStatus @default(PENDING)
+  startedAt  DateTime      @default(now())
+  endedAt    DateTime?
+
+  twinSnapshots    TwinSnapshot[]
+  healthSnapshots  HealthSnapshot[]
+  predictions      Prediction[]
+  advisories       Advisory[]
+  auditEntries     AuditEntry[]
+
+  @@index([engineId])
+  @@map("missions")
+}
+
+// ---------------------------------------------------------------------------
+// TwinSnapshot  (persisted subset of TwinState from M2)
+// ---------------------------------------------------------------------------
+
+model TwinSnapshot {
+  id             String   @id @default(cuid())
+  missionId      String
+  mission        Mission  @relation(fields: [missionId], references: [id])
+  correlationId  String
+  stateTime      DateTime
+  load           Float
+  stateQuality   String // GOOD | STALE | DEGRADED
+  syncLagMs      Float?
+  raw            Json // full TwinState payload for replay/audit
+  producerVersion String
+  createdAt      DateTime @default(now())
+
+  @@index([missionId, stateTime])
+  @@map("twin_snapshots")
+}
+
+// ---------------------------------------------------------------------------
+// HealthSnapshot  (from M3)
+// ---------------------------------------------------------------------------
+
+model HealthSnapshot {
+  id              String   @id @default(cuid())
+  missionId       String
+  mission         Mission  @relation(fields: [missionId], references: [id])
+  correlationId   String
+  snapshotTime    DateTime
+  healthScore     Float
+  trend           String // IMPROVING | STABLE | DEGRADING
+  violatedRules   String[] // rule IDs
+  reasonCodes     String[]
+  ruleVersion     String
+  raw             Json
+  producerVersion String
+  createdAt       DateTime @default(now())
+
+  @@index([missionId, snapshotTime])
+  @@map("health_snapshots")
+}
+
+// ---------------------------------------------------------------------------
+// Prediction  (covers both FaultPrediction from M4 and RulEstimate from M5)
+// ---------------------------------------------------------------------------
+
+enum PredictionKind {
+  FAULT
+  RUL
+}
+
+model Prediction {
+  id              String         @id @default(cuid())
+  missionId       String
+  mission         Mission        @relation(fields: [missionId], references: [id])
+  correlationId   String
+  kind            PredictionKind
+  predictionTime  DateTime
+  // FaultPrediction fields (null when kind = RUL)
+  faultType       String?
+  confidence      Float?
+  anomalyScore    Float?
+  // RulEstimate fields (null when kind = FAULT)
+  cycles          Float?
+  lowerBound      Float?
+  upperBound      Float?
+  rulTrend        String?
+  experimental    Boolean?
+  raw             Json
+  producerVersion String
+  createdAt       DateTime       @default(now())
+
+  @@index([missionId, kind, predictionTime])
+  @@map("predictions")
+}
+
+// ---------------------------------------------------------------------------
+// Advisory  (produced by M6 itself, consumed by HMI)
+// ---------------------------------------------------------------------------
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AdvisoryAction {
+  CONTINUE
+  REDUCE_LOAD
+  INSPECT
+}
+
+model Advisory {
+  id                 String         @id @default(cuid())
+  missionId          String
+  mission            Mission        @relation(fields: [missionId], references: [id])
+  correlationId      String
+  advisoryTime       DateTime
+  risk               RiskLevel
+  action             AdvisoryAction
+  explanation        String
+  inspectionRequired Boolean
+  raw                Json
+  producerVersion    String
+  createdAt          DateTime       @default(now())
+
+  @@index([missionId, advisoryTime])
+  @@map("advisories")
+}
+
+// ---------------------------------------------------------------------------
+// AuditEntry  (RBAC + traceability)
+// ---------------------------------------------------------------------------
+
+model AuditEntry {
+  id        String   @id @default(cuid())
+  missionId String?
+  mission   Mission? @relation(fields: [missionId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String // e.g. "MISSION_STARTED", "ADVISORY_VIEWED", "LOGIN"
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  @@index([missionId])
+  @@map("audit_entries")
+}

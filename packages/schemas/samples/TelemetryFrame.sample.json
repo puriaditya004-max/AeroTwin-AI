@@ -1,0 +1,21 @@
+{
+  "engineId": "ENG-001",
+  "missionId": "MSN-OILPRESS-001",
+  "correlationId": "corr-8f3a1c",
+  "timestamp": "2026-08-22T09:14:32.500Z",
+  "producerVersion": "1.0.0",
+  "sensors": {
+    "rpm": 2450,
+    "oilPressureKpa": 210,
+    "oilTempC": 92,
+    "coolantTempC": 88,
+    "vibrationMmS": 3.2,
+    "fuelFlowLph": 18.5,
+    "throttlePct": 65,
+    "altitudeM": 3200,
+    "ambientTempC": 12,
+    "ambientPressureKpa": 68
+  },
+  "qualityFlag": "OK",
+  "scenarioId": "oil_pressure_degradation"
+}

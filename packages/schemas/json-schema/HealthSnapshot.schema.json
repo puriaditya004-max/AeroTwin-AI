@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aerotwin.ai/schemas/HealthSnapshot.schema.json",
+  "title": "HealthSnapshot",
+  "description": "Explainable engine health score derived from twin state. Producer: M3 (Health Monitoring). Consumers: M5, M6.",
+  "type": "object",
+  "required": ["engineId", "missionId", "correlationId", "snapshotTime", "healthScore", "trend", "violatedRules", "reasonCodes", "ruleVersion", "producerVersion"],
+  "additionalProperties": true,
+  "properties": {
+    "engineId": { "type": "string" },
+    "missionId": { "type": "string" },
+    "correlationId": { "type": "string" },
+    "snapshotTime": { "type": "string", "format": "date-time" },
+    "producerVersion": { "type": "string" },
+    "healthScore": { "type": "number", "minimum": 0, "maximum": 100, "description": "0 = critical, 100 = fully healthy." },
+    "trend": {
+      "type": "string",
+      "enum": ["IMPROVING", "STABLE", "DEGRADING"],
+      "description": "Direction of healthScore over the recent window."
+    },
+    "subScores": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "temperature": { "type": "number", "minimum": 0, "maximum": 100 },
+        "pressure": { "type": "number", "minimum": 0, "maximum": 100 },
+        "vibration": { "type": "number", "minimum": 0, "maximum": 100 },
+        "load": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "violatedRules": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs of health rules currently violated, e.g. ['RULE_OIL_TEMP_HIGH']."
+    },
+    "reasonCodes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Human-readable reason codes explaining the score, e.g. ['Oil temperature 12C above safe envelope']."
+    },
+    "ruleVersion": { "type": "string", "description": "Version of the rule/threshold set used for this snapshot." },
+    "dataQualityIssue": {
+      "type": "boolean",
+      "description": "True if the score is uncertain due to sensor/data quality problems rather than genuine engine health."
+    }
+  }
+}

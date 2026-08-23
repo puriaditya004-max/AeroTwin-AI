@@ -1,0 +1,19 @@
+{
+  "engineId": "ENG-001",
+  "missionId": "MSN-OILPRESS-001",
+  "correlationId": "corr-8f3a1c",
+  "snapshotTime": "2026-08-22T09:14:32.700Z",
+  "producerVersion": "1.0.0",
+  "healthScore": 71.5,
+  "trend": "DEGRADING",
+  "subScores": {
+    "temperature": 82,
+    "pressure": 58,
+    "vibration": 95,
+    "load": 88
+  },
+  "violatedRules": ["RULE_OIL_PRESSURE_LOW"],
+  "reasonCodes": ["Oil pressure trending below safe envelope over last 5 minutes"],
+  "ruleVersion": "rules-2026.08.1",
+  "dataQualityIssue": false
+}

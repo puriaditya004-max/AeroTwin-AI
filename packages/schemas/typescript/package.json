@@ -1,0 +1,18 @@
+{
+  "name": "@aerotwin-ai/schemas",
+  "version": "1.0.0",
+  "description": "Shared Zod contract schemas for AeroTwin AI (Control API + Operator HMI)",
+  "main": "dist/contracts.js",
+  "types": "dist/contracts.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "validate-samples": "tsc && node dist/validate_samples.js"
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.14.0"
+  }
+}

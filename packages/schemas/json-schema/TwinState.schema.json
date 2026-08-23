@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aerotwin.ai/schemas/TwinState.schema.json",
+  "title": "TwinState",
+  "description": "Synchronized virtual engine state derived from telemetry. Producer: M2 (Digital Twin). Consumers: M3, M4, M5.",
+  "type": "object",
+  "required": ["engineId", "missionId", "correlationId", "stateTime", "load", "margins", "derivedFeatures", "stateQuality", "producerVersion"],
+  "additionalProperties": true,
+  "properties": {
+    "engineId": { "type": "string" },
+    "missionId": { "type": "string" },
+    "correlationId": { "type": "string" },
+    "stateTime": { "type": "string", "format": "date-time", "description": "UTC ISO 8601 time this state estimate applies to." },
+    "producerVersion": { "type": "string" },
+    "load": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Estimated engine load, percent of rated capacity."
+    },
+    "margins": {
+      "type": "object",
+      "required": ["tempMarginC", "pressureMarginKpa", "vibrationMarginMmS"],
+      "additionalProperties": false,
+      "properties": {
+        "tempMarginC": { "type": "number", "description": "Headroom to temperature limit, Celsius. Negative means limit exceeded." },
+        "pressureMarginKpa": { "type": "number", "description": "Headroom to pressure limit, kilopascals. Negative means limit exceeded." },
+        "vibrationMarginMmS": { "type": "number", "description": "Headroom to vibration limit, mm/s. Negative means limit exceeded." }
+      }
+    },
+    "derivedFeatures": {
+      "type": "object",
+      "required": ["rollingMeanRpm", "rollingStdVibration", "rateOfChangeOilTempCPerMin", "sampleWindowSeconds"],
+      "additionalProperties": true,
+      "properties": {
+        "rollingMeanRpm": { "type": "number" },
+        "rollingStdVibration": { "type": "number" },
+        "rateOfChangeOilTempCPerMin": { "type": "number" },
+        "sampleWindowSeconds": { "type": "number", "minimum": 0 }
+      }
+    },
+    "stateQuality": {
+      "type": "string",
+      "enum": ["GOOD", "STALE", "DEGRADED"],
+      "description": "GOOD = fresh, complete input. STALE = no recent update within expected cadence. DEGRADED = built from missing/low-quality telemetry."
+    },
+    "syncLagMs": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Milliseconds between the source telemetry timestamp and this state being published."
+    }
+  }
+}

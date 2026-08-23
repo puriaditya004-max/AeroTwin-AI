@@ -1,0 +1,22 @@
+{
+  "engineId": "ENG-001",
+  "missionId": "MSN-OILPRESS-001",
+  "correlationId": "corr-8f3a1c",
+  "advisoryTime": "2026-08-22T09:14:33.200Z",
+  "producerVersion": "control-api-1.0.0",
+  "risk": "HIGH",
+  "action": "INSPECT",
+  "explanation": "Oil pressure has degraded steadily over 5 minutes and the fault model flags oil-pressure degradation with 87% confidence. Health score fell to 71.5 driven mainly by the pressure sub-score.",
+  "inspectionRequired": true,
+  "contributingSignals": {
+    "healthScore": 71.5,
+    "faultType": "OIL_PRESSURE_DEGRADATION",
+    "faultConfidence": 0.87,
+    "rulCycles": 340
+  },
+  "sourceVersions": {
+    "healthSnapshotVersion": "rules-2026.08.1",
+    "faultPredictionVersion": "fault-clf-1.0.0",
+    "rulEstimateVersion": "rul-reg-0.1.0"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aerotwin.ai/schemas/TelemetryFrame.schema.json",
+  "title": "TelemetryFrame",
+  "description": "Raw engine telemetry sample. Producer: M1 (Telemetry Simulator). Consumer: M2 (Digital Twin).",
+  "type": "object",
+  "required": ["engineId", "missionId", "correlationId", "timestamp", "sensors", "qualityFlag", "producerVersion"],
+  "additionalProperties": true,
+  "properties": {
+    "engineId": { "type": "string", "description": "Unique identifier of the engine instance." },
+    "missionId": { "type": "string", "description": "Unique identifier of the current mission/scenario run." },
+    "correlationId": { "type": "string", "description": "Trace id shared across the whole event chain for one mission." },
+    "timestamp": { "type": "string", "format": "date-time", "description": "UTC ISO 8601 sample time." },
+    "producerVersion": { "type": "string", "description": "Semantic version of the telemetry simulator that produced this frame, e.g. 1.0.0." },
+    "sensors": {
+      "type": "object",
+      "required": ["rpm", "oilPressureKpa", "oilTempC", "coolantTempC", "vibrationMmS", "fuelFlowLph", "throttlePct", "altitudeM", "ambientTempC", "ambientPressureKpa"],
+      "additionalProperties": false,
+      "properties": {
+        "rpm": { "type": "number", "minimum": 0, "maximum": 4000, "description": "Engine speed, revolutions per minute." },
+        "oilPressureKpa": { "type": "number", "minimum": 0, "maximum": 1000, "description": "Oil pressure, kilopascals." },
+        "oilTempC": { "type": "number", "minimum": -40, "maximum": 200, "description": "Oil temperature, Celsius." },
+        "coolantTempC": { "type": "number", "minimum": -40, "maximum": 200, "description": "Coolant / cylinder head temperature, Celsius." },
+        "vibrationMmS": { "type": "number", "minimum": 0, "maximum": 50, "description": "Vibration velocity, mm/s RMS." },
+        "fuelFlowLph": { "type": "number", "minimum": 0, "maximum": 100, "description": "Fuel flow, litres per hour." },
+        "throttlePct": { "type": "number", "minimum": 0, "maximum": 100, "description": "Throttle position, percent." },
+        "altitudeM": { "type": "number", "minimum": 0, "maximum": 12000, "description": "Altitude, metres." },
+        "ambientTempC": { "type": "number", "minimum": -60, "maximum": 60, "description": "Ambient air temperature, Celsius." },
+        "ambientPressureKpa": { "type": "number", "minimum": 10, "maximum": 110, "description": "Ambient air pressure, kilopascals." }
+      }
+    },
+    "qualityFlag": {
+      "type": "string",
+      "enum": ["OK", "DEGRADED", "DROPOUT", "DUPLICATE", "OUT_OF_ORDER"],
+      "description": "Data quality classification assigned by the simulator/ingest layer."
+    },
+    "scenarioId": {
+      "type": "string",
+      "description": "Optional. Which of the 5 mandatory scenarios this frame belongs to (for replay manifests)."
+    }
+  }
+}

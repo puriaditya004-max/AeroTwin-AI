@@ -1,0 +1,213 @@
+/**
+ * AeroTwin AI - Shared contract schemas (Zod)
+ *
+ * ⚠️ COPIED FILE — canonical source of truth is
+ * /packages/schemas/typescript/contracts.ts. This copy exists so the
+ * Vite app's TypeScript project doesn't reach outside its own root.
+ * Until the repo adopts npm workspaces, ANY edit to a contract must be
+ * made in BOTH places, or copied again with:
+ *
+ *   Copy-Item ..\..\..\packages\schemas\typescript\contracts.ts .\contracts.ts
+ *   (run from apps/operator-hmi/src/types/)
+ *
+ * Do not edit a contract without also updating the JSON Schema and
+ * writing a short ADR in /docs/decisions/.
+ *
+ * Usage:
+ *   import { TelemetryFrameSchema, type TelemetryFrame } from "./contracts";
+ *   const frame = TelemetryFrameSchema.parse(rawPayload);
+ */
+
+import { z } from "zod";
+
+// ---------------------------------------------------------------------------
+// TelemetryFrame  (Producer: M1 -> Consumer: M2)
+// ---------------------------------------------------------------------------
+
+export const QualityFlagSchema = z.enum([
+  "OK",
+  "DEGRADED",
+  "DROPOUT",
+  "DUPLICATE",
+  "OUT_OF_ORDER",
+]);
+
+export const SensorsSchema = z.object({
+  rpm: z.number().min(0).max(4000),
+  oilPressureKpa: z.number().min(0).max(1000),
+  oilTempC: z.number().min(-40).max(200),
+  coolantTempC: z.number().min(-40).max(200),
+  vibrationMmS: z.number().min(0).max(50),
+  fuelFlowLph: z.number().min(0).max(100),
+  throttlePct: z.number().min(0).max(100),
+  altitudeM: z.number().min(0).max(12000),
+  ambientTempC: z.number().min(-60).max(60),
+  ambientPressureKpa: z.number().min(10).max(110),
+});
+
+export const TelemetryFrameSchema = z.object({
+  engineId: z.string(),
+  missionId: z.string(),
+  correlationId: z.string(),
+  timestamp: z.string().datetime(),
+  producerVersion: z.string(),
+  sensors: SensorsSchema,
+  qualityFlag: QualityFlagSchema,
+  scenarioId: z.string().optional(),
+});
+
+export type TelemetryFrame = z.infer<typeof TelemetryFrameSchema>;
+
+// ---------------------------------------------------------------------------
+// TwinState  (Producer: M2 -> Consumers: M3, M4, M5)
+// ---------------------------------------------------------------------------
+
+export const StateQualitySchema = z.enum(["GOOD", "STALE", "DEGRADED"]);
+
+export const MarginsSchema = z.object({
+  tempMarginC: z.number(),
+  pressureMarginKpa: z.number(),
+  vibrationMarginMmS: z.number(),
+});
+
+export const DerivedFeaturesSchema = z.object({
+  rollingMeanRpm: z.number(),
+  rollingStdVibration: z.number(),
+  rateOfChangeOilTempCPerMin: z.number(),
+  sampleWindowSeconds: z.number().min(0),
+});
+
+export const TwinStateSchema = z.object({
+  engineId: z.string(),
+  missionId: z.string(),
+  correlationId: z.string(),
+  stateTime: z.string().datetime(),
+  producerVersion: z.string(),
+  load: z.number().min(0).max(100),
+  margins: MarginsSchema,
+  derivedFeatures: DerivedFeaturesSchema,
+  stateQuality: StateQualitySchema,
+  syncLagMs: z.number().min(0).optional(),
+});
+
+export type TwinState = z.infer<typeof TwinStateSchema>;
+
+// ---------------------------------------------------------------------------
+// HealthSnapshot  (Producer: M3 -> Consumers: M5, M6)
+// ---------------------------------------------------------------------------
+
+export const TrendSchema = z.enum(["IMPROVING", "STABLE", "DEGRADING"]);
+
+export const SubScoresSchema = z.object({
+  temperature: z.number().min(0).max(100).optional(),
+  pressure: z.number().min(0).max(100).optional(),
+  vibration: z.number().min(0).max(100).optional(),
+  load: z.number().min(0).max(100).optional(),
+});
+
+export const HealthSnapshotSchema = z.object({
+  engineId: z.string(),
+  missionId: z.string(),
+  correlationId: z.string(),
+  snapshotTime: z.string().datetime(),
+  producerVersion: z.string(),
+  healthScore: z.number().min(0).max(100),
+  trend: TrendSchema,
+  subScores: SubScoresSchema.optional(),
+  violatedRules: z.array(z.string()),
+  reasonCodes: z.array(z.string()),
+  ruleVersion: z.string(),
+  dataQualityIssue: z.boolean().default(false),
+});
+
+export type HealthSnapshot = z.infer<typeof HealthSnapshotSchema>;
+
+// ---------------------------------------------------------------------------
+// FaultPrediction  (Producer: M4 -> Consumers: M5, M6)
+// ---------------------------------------------------------------------------
+
+export const FaultTypeSchema = z.enum([
+  "NONE",
+  "OVERHEATING",
+  "OIL_PRESSURE_DEGRADATION",
+  "VIBRATION_MISFIRE",
+  "SENSOR_FAULT",
+]);
+
+export const ContributorSchema = z.object({
+  feature: z.string(),
+  contribution: z.number(),
+});
+
+export const FaultPredictionSchema = z.object({
+  engineId: z.string(),
+  missionId: z.string(),
+  correlationId: z.string(),
+  predictionTime: z.string().datetime(),
+  producerVersion: z.string(),
+  faultType: FaultTypeSchema,
+  confidence: z.number().min(0).max(1),
+  anomalyScore: z.number().min(0).max(1),
+  contributors: z.array(ContributorSchema),
+  detectionDelayMs: z.number().min(0).optional(),
+});
+
+export type FaultPrediction = z.infer<typeof FaultPredictionSchema>;
+
+// ---------------------------------------------------------------------------
+// RulEstimate  (Producer: M5 -> Consumer: M6)
+// ---------------------------------------------------------------------------
+
+export const RulBasisSchema = z.enum(["ML_REGRESSION", "RULE_BASED_PROXY"]);
+
+export const RulEstimateSchema = z.object({
+  engineId: z.string(),
+  missionId: z.string(),
+  correlationId: z.string(),
+  estimateTime: z.string().datetime(),
+  producerVersion: z.string(),
+  cycles: z.number().min(0),
+  lowerBound: z.number().min(0),
+  upperBound: z.number().min(0),
+  trend: TrendSchema,
+  experimental: z.literal(true),
+  basis: RulBasisSchema.optional(),
+});
+
+export type RulEstimate = z.infer<typeof RulEstimateSchema>;
+
+// ---------------------------------------------------------------------------
+// MissionAdvisory  (Producer: M6 -> Consumer: Operator HMI)
+// ---------------------------------------------------------------------------
+
+export const RiskSchema = z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
+export const ActionSchema = z.enum(["CONTINUE", "REDUCE_LOAD", "INSPECT"]);
+
+export const ContributingSignalsSchema = z.object({
+  healthScore: z.number().optional(),
+  faultType: z.string().optional(),
+  faultConfidence: z.number().optional(),
+  rulCycles: z.number().optional(),
+});
+
+export const SourceVersionsSchema = z.object({
+  healthSnapshotVersion: z.string().optional(),
+  faultPredictionVersion: z.string().optional(),
+  rulEstimateVersion: z.string().optional(),
+});
+
+export const MissionAdvisorySchema = z.object({
+  engineId: z.string(),
+  missionId: z.string(),
+  correlationId: z.string(),
+  advisoryTime: z.string().datetime(),
+  producerVersion: z.string(),
+  risk: RiskSchema,
+  action: ActionSchema,
+  explanation: z.string(),
+  inspectionRequired: z.boolean(),
+  contributingSignals: ContributingSignalsSchema.optional(),
+  sourceVersions: SourceVersionsSchema.optional(),
+});
+
+export type MissionAdvisory = z.infer<typeof MissionAdvisorySchema>;

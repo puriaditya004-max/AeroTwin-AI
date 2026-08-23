@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aerotwin.ai/schemas/FaultPrediction.schema.json",
+  "title": "FaultPrediction",
+  "description": "Fault classification and anomaly score with explanation. Producer: M4 (Fault AI). Consumers: M5, M6.",
+  "type": "object",
+  "required": ["engineId", "missionId", "correlationId", "predictionTime", "faultType", "confidence", "anomalyScore", "contributors", "producerVersion"],
+  "additionalProperties": true,
+  "properties": {
+    "engineId": { "type": "string" },
+    "missionId": { "type": "string" },
+    "correlationId": { "type": "string" },
+    "predictionTime": { "type": "string", "format": "date-time" },
+    "producerVersion": { "type": "string", "description": "Model + feature-pipeline version, e.g. fault-clf-1.2.0." },
+    "faultType": {
+      "type": "string",
+      "enum": ["NONE", "OVERHEATING", "OIL_PRESSURE_DEGRADATION", "VIBRATION_MISFIRE", "SENSOR_FAULT"],
+      "description": "Predicted fault class."
+    },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Classifier confidence for faultType." },
+    "anomalyScore": { "type": "number", "minimum": 0, "maximum": 1, "description": "Unsupervised anomaly score, 0 = normal, 1 = highly anomalous." },
+    "contributors": {
+      "type": "array",
+      "description": "Top contributing features (SHAP or equivalent), ordered by impact.",
+      "items": {
+        "type": "object",
+        "required": ["feature", "contribution"],
+        "additionalProperties": false,
+        "properties": {
+          "feature": { "type": "string" },
+          "contribution": { "type": "number", "description": "Signed contribution weight, positive pushes toward the predicted fault." }
+        }
+      }
+    },
+    "detectionDelayMs": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Optional. Time from fault injection/onset to this prediction, for latency evaluation on labeled scenarios."
+    }
+  }
+}

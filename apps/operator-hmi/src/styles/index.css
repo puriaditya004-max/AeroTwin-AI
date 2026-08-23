@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-void text-text-primary font-body antialiased;
+    background-image:
+      radial-gradient(circle at 20% -10%, rgba(79, 209, 232, 0.05), transparent 40%),
+      radial-gradient(circle at 90% 10%, rgba(61, 220, 132, 0.04), transparent 35%);
+  }
+
+  /* Visible keyboard focus everywhere — no silent focus loss */
+  :focus-visible {
+    outline: 2px solid theme("colors.data");
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-panel border border-hairline rounded-lg;
+  }
+
+  .panel-raised {
+    @apply bg-panel-raised border border-hairline rounded-lg;
+  }
+
+  .eyebrow {
+    @apply font-mono text-[11px] tracking-[0.14em] uppercase text-text-muted;
+  }
+}

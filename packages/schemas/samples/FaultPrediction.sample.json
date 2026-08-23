@@ -1,0 +1,16 @@
+{
+  "engineId": "ENG-001",
+  "missionId": "MSN-OILPRESS-001",
+  "correlationId": "corr-8f3a1c",
+  "predictionTime": "2026-08-22T09:14:32.900Z",
+  "producerVersion": "fault-clf-1.0.0",
+  "faultType": "OIL_PRESSURE_DEGRADATION",
+  "confidence": 0.87,
+  "anomalyScore": 0.74,
+  "contributors": [
+    { "feature": "oilPressureKpa_rollingMean", "contribution": 0.42 },
+    { "feature": "oilPressureKpa_rateOfChange", "contribution": 0.31 },
+    { "feature": "oilTempC", "contribution": 0.09 }
+  ],
+  "detectionDelayMs": 4200
+}

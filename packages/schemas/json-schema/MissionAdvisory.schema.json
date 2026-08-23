@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aerotwin.ai/schemas/MissionAdvisory.schema.json",
+  "title": "MissionAdvisory",
+  "description": "Final operator-facing advisory combining all upstream signals. Producer: M6 (Control API). Consumer: Operator HMI.",
+  "type": "object",
+  "required": ["engineId", "missionId", "correlationId", "advisoryTime", "risk", "action", "explanation", "inspectionRequired", "producerVersion"],
+  "additionalProperties": true,
+  "properties": {
+    "engineId": { "type": "string" },
+    "missionId": { "type": "string" },
+    "correlationId": { "type": "string" },
+    "advisoryTime": { "type": "string", "format": "date-time" },
+    "producerVersion": { "type": "string" },
+    "risk": {
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    },
+    "action": {
+      "type": "string",
+      "enum": ["CONTINUE", "REDUCE_LOAD", "INSPECT"],
+      "description": "Advisory only. The system never issues autonomous control commands."
+    },
+    "explanation": {
+      "type": "string",
+      "description": "Plain-language explanation tying the advisory back to specific contributing sensors/rules."
+    },
+    "inspectionRequired": { "type": "boolean" },
+    "contributingSignals": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "healthScore": { "type": "number" },
+        "faultType": { "type": "string" },
+        "faultConfidence": { "type": "number" },
+        "rulCycles": { "type": "number" }
+      },
+      "description": "Snapshot of the upstream values that produced this advisory, for audit/replay."
+    },
+    "sourceVersions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "healthSnapshotVersion": { "type": "string" },
+        "faultPredictionVersion": { "type": "string" },
+        "rulEstimateVersion": { "type": "string" }
+      }
+    }
+  }
+}

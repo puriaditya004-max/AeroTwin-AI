@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aerotwin.ai/schemas/RulEstimate.schema.json",
+  "title": "RulEstimate",
+  "description": "Experimental remaining-useful-life proxy with uncertainty. Producer: M5 (RUL & Validation). Consumer: M6.",
+  "type": "object",
+  "required": ["engineId", "missionId", "correlationId", "estimateTime", "cycles", "lowerBound", "upperBound", "trend", "producerVersion", "experimental"],
+  "additionalProperties": true,
+  "properties": {
+    "engineId": { "type": "string" },
+    "missionId": { "type": "string" },
+    "correlationId": { "type": "string" },
+    "estimateTime": { "type": "string", "format": "date-time" },
+    "producerVersion": { "type": "string", "description": "Model version, e.g. rul-reg-0.3.0." },
+    "cycles": { "type": "number", "minimum": 0, "description": "Point estimate of remaining operating cycles/hours." },
+    "lowerBound": { "type": "number", "minimum": 0, "description": "Lower bound of the confidence range." },
+    "upperBound": { "type": "number", "minimum": 0, "description": "Upper bound of the confidence range." },
+    "trend": {
+      "type": "string",
+      "enum": ["IMPROVING", "STABLE", "DEGRADING"],
+      "description": "Direction of RUL over the recent window. Must never show IMPROVING during active degradation injection — validated by M5 acceptance tests."
+    },
+    "experimental": {
+      "type": "boolean",
+      "const": true,
+      "description": "Always true. This estimate is a demonstrator proxy, not field-validated remaining life."
+    },
+    "basis": {
+      "type": "string",
+      "enum": ["ML_REGRESSION", "RULE_BASED_PROXY"],
+      "description": "Which method produced this estimate, for judge transparency."
+    }
+  }
+}

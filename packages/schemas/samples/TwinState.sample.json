@@ -1,0 +1,21 @@
+{
+  "engineId": "ENG-001",
+  "missionId": "MSN-OILPRESS-001",
+  "correlationId": "corr-8f3a1c",
+  "stateTime": "2026-08-22T09:14:32.600Z",
+  "producerVersion": "1.0.0",
+  "load": 62.4,
+  "margins": {
+    "tempMarginC": 8.0,
+    "pressureMarginKpa": 15.0,
+    "vibrationMarginMmS": 6.8
+  },
+  "derivedFeatures": {
+    "rollingMeanRpm": 2438.7,
+    "rollingStdVibration": 0.41,
+    "rateOfChangeOilTempCPerMin": 0.8,
+    "sampleWindowSeconds": 30
+  },
+  "stateQuality": "GOOD",
+  "syncLagMs": 120
+}

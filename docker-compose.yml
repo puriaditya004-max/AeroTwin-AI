@@ -1,0 +1,130 @@
+# AeroTwin AI - one-command local demo
+#
+# Usage:
+#   cp .env.example .env   # fill in real values first
+#   docker compose up --build
+#
+# Brings up: TimescaleDB (Postgres + Timescale extension), Redis, a one-shot
+# migration job, the Control API, and the Operator HMI. M1-M5 services will
+# be added here as each member's module is ready — see the commented
+# placeholder block at the bottom.
+#
+# Requires Docker Compose v2.20+ (for `condition: service_completed_successfully`).
+# Check with `docker compose version`.
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aerotwin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-aerotwin}
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aerotwin} -d ${POSTGRES_DB:-aerotwin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot job: applies Prisma migrations, then exits. control-api waits
+  # for this to finish successfully before it starts. Uses the "build" stage
+  # (has the Prisma CLI) rather than the slim "production" stage.
+  migrate:
+    build:
+      context: ./services/control-api
+      target: build
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-aerotwin}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-aerotwin}?schema=public
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+
+  control-api:
+    build:
+      context: ./services/control-api
+      target: production
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-aerotwin}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-aerotwin}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    ports:
+      - "4000:4000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  operator-hmi:
+    build:
+      context: ./apps/operator-hmi
+      args:
+        VITE_CONTROL_API_URL: ${VITE_CONTROL_API_URL:-http://localhost:4000}
+        VITE_HMI_MODE: ${VITE_HMI_MODE:-DEMO}
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - control-api
+
+  # ---------------------------------------------------------------------
+  # M1-M5 services — uncomment and fill in as each module is ready.
+  # Each should expose a healthcheck and connect to redis for streams
+  # (M1/M2) or call control-api's /ingest/* endpoints directly (M3/M4/M5).
+  # ---------------------------------------------------------------------
+  # telemetry-simulator:      # M1
+  #   build: ./services/telemetry-simulator
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #
+  # twin-engine:               # M2
+  #   build: ./services/twin-engine
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #
+  # health-monitor:            # M3
+  #   build: ./services/health-monitor
+  #   depends_on:
+  #     - control-api
+  #
+  # fault-ai:                  # M4
+  #   build: ./services/fault-ai
+  #   depends_on:
+  #     - control-api
+  #
+  # rul-validation:            # M5
+  #   build: ./services/rul-validation
+  #   depends_on:
+  #     - control-api
+
+volumes:
+  timescaledb_data:

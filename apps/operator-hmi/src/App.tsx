@@ -26,17 +26,21 @@ export default function App() {
   const missionId = MOCK_MISSION_ID;
   const engineId = MOCK_ENGINE_ID;
 
-  const live = useMissionSocket(missionId);
+  // authToken is undefined until a real login flow exists (see control-api
+  // README "Known gaps"). GET /missions/:id/state will 401 in LIVE mode
+  // until that's wired up — expected, not a bug in this hook.
+  const live = useMissionSocket(missionId, undefined);
   const [advisoryHistory] = useState(() => [mockAdvisory]);
   const history = useMemo(() => buildMockHistory(), []);
 
   const health = MODE === "LIVE" ? live.health : mockHealth;
   const fault = MODE === "LIVE" ? live.fault : mockFault;
+  const rul = MODE === "LIVE" ? live.rul : mockRul;
   const advisory = MODE === "LIVE" ? live.advisory : mockAdvisory;
-  const rul = MODE === "LIVE" ? undefined : mockRul; // no RUL socket event yet — polled/fetched separately once M5 wires in
   const connected = MODE === "LIVE" ? live.connected : true;
 
   const currentPoint = history[history.length - 1];
+  const sensorQuality = MODE === "LIVE" ? undefined : "OK"; // wire to latest TelemetryFrame.qualityFlag once M1/M2 feed is live
 
   return (
     <div className="min-h-screen">
@@ -57,7 +61,7 @@ export default function App() {
 
         <div>
           <div className="eyebrow mb-2">Telemetry</div>
-          <TelemetryGrid history={history} current={currentPoint} />
+          <TelemetryGrid history={history} current={currentPoint} qualityFlag={sensorQuality} />
         </div>
 
         <AuditLog entries={advisoryHistory} />

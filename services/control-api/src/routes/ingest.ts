@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { validateBody } from "../middleware/validate";
 import { HealthSnapshotSchema, FaultPredictionSchema, RulEstimateSchema } from "../types/contracts";
-import { emitHealthUpdated, emitFaultPredicted, emitAdvisoryUpdated } from "../sockets";
+import { emitHealthUpdated, emitFaultPredicted, emitRulUpdated, emitAdvisoryUpdated } from "../sockets";
 import { buildMissionAdvisory } from "../services/advisory";
 import { logAudit } from "../services/audit";
 
@@ -105,6 +105,7 @@ ingestRouter.post("/rul", validateBody(RulEstimateSchema), async (req, res) => {
   // RUL doesn't trigger an immediate advisory recompute on its own in this
   // baseline — it's folded in the next time health or fault triggers one.
   // Adjust if the team decides RUL crossing a threshold should be its own trigger.
+  emitRulUpdated(rul.missionId, rul);
 
   res.status(202).json({ status: "accepted" });
 });

@@ -72,6 +72,31 @@ missionRouter.get("/:missionId/advisories/latest", requireAuth, async (req, res)
 });
 
 /**
+ * GET /missions/:missionId/state — combined latest snapshot for HMI initial load.
+ * Fixes the "page refresh shows nothing" gap: the HMI's Socket.IO connection
+ * only delivers events that arrive AFTER it subscribes, so on mount (or a
+ * refresh mid-mission) it must fetch the current state via REST first, then
+ * let live socket events take over from there.
+ */
+missionRouter.get("/:missionId/state", requireAuth, async (req, res) => {
+  const { missionId } = req.params;
+
+  const [health, faultRow, rulRow, advisory] = await Promise.all([
+    prisma.healthSnapshot.findFirst({ where: { missionId }, orderBy: { snapshotTime: "desc" } }),
+    prisma.prediction.findFirst({ where: { missionId, kind: "FAULT" }, orderBy: { predictionTime: "desc" } }),
+    prisma.prediction.findFirst({ where: { missionId, kind: "RUL" }, orderBy: { predictionTime: "desc" } }),
+    prisma.advisory.findFirst({ where: { missionId }, orderBy: { advisoryTime: "desc" } }),
+  ]);
+
+  res.json({
+    health: health?.raw ?? null,
+    fault: faultRow?.raw ?? null,
+    rul: rulRow?.raw ?? null,
+    advisory: advisory?.raw ?? null,
+  });
+});
+
+/**
  * POST /missions/:missionId/end — mark mission complete.
  */
 missionRouter.post("/:missionId/end", requireAuth, requireRole("ADMIN", "OPERATOR"), async (req, res) => {

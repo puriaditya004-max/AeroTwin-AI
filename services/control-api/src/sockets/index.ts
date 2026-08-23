@@ -1,6 +1,6 @@
 import type { Server as HttpServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
-import type { HealthSnapshot, FaultPrediction, MissionAdvisory } from "../types/contracts";
+import type { HealthSnapshot, FaultPrediction, RulEstimate, MissionAdvisory } from "../types/contracts";
 
 let io: SocketIOServer | undefined;
 
@@ -46,6 +46,10 @@ export function emitHealthUpdated(missionId: string, snapshot: HealthSnapshot): 
 
 export function emitFaultPredicted(missionId: string, prediction: FaultPrediction): void {
   getIO().to(missionRoom(missionId)).emit("fault.predicted", prediction);
+}
+
+export function emitRulUpdated(missionId: string, estimate: RulEstimate): void {
+  getIO().to(missionRoom(missionId)).emit("rul.updated", estimate);
 }
 
 export function emitAdvisoryUpdated(missionId: string, advisory: MissionAdvisory): void {

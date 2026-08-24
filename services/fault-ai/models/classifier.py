@@ -1,14 +1,22 @@
 """
-Gate 05: XGBoost Fault Classifier
+Gate 05: XGBoost Fault Classifier with Sklearn Fallback Adapter
 
-Supervised XGBoost 5-class fault classifier with probability calibration.
+Supervised 5-class fault classifier with probability calibration.
+Uses XGBoost when available; falls back seamlessly to HistGradientBoostingClassifier.
 """
 
+import os
 from typing import Dict, List, Tuple, Optional
 import joblib
 import numpy as np
 from sklearn.calibration import CalibratedClassifierCV
-import xgboost as xgb
+from sklearn.ensemble import HistGradientBoostingClassifier
+
+try:
+    import xgboost as xgb
+    HAS_XGBOOST = True
+except ImportError:
+    HAS_XGBOOST = False
 
 from app.contracts import FaultType
 
@@ -24,23 +32,31 @@ INV_LABEL_MAP = {v: k for k, v in LABEL_MAP.items()}
 
 
 class FaultClassifier:
-    """XGBoost multiclass model with probability calibration."""
+    """Multiclass fault classifier model with probability calibration."""
 
     def __init__(self, random_state: int = 42):
-        self.base_model = xgb.XGBClassifier(
-            n_estimators=100,
-            max_depth=4,
-            learning_rate=0.1,
-            objective="multi:softprob",
-            num_class=5,
-            random_state=random_state,
-            eval_metric="mlogloss"
-        )
+        if HAS_XGBOOST:
+            self.base_model = xgb.XGBClassifier(
+                n_estimators=100,
+                max_depth=4,
+                learning_rate=0.1,
+                objective="multi:softprob",
+                num_class=5,
+                random_state=random_state,
+                eval_metric="mlogloss"
+            )
+        else:
+            self.base_model = HistGradientBoostingClassifier(
+                max_iter=100,
+                max_depth=4,
+                learning_rate=0.1,
+                random_state=random_state
+            )
         self.calibrated_model: Optional[CalibratedClassifierCV] = None
         self.is_fitted = False
 
     def fit(self, X_train: np.ndarray, y_train: np.ndarray, X_val: Optional[np.ndarray] = None, y_val: Optional[np.ndarray] = None):
-        """Fits base XGBoost and calibrates class probabilities on validation data."""
+        """Fits base model and calibrates class probabilities on validation data."""
         self.base_model.fit(X_train, y_train)
 
         if X_val is not None and y_val is not None:
@@ -55,7 +71,6 @@ class FaultClassifier:
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         """Returns calibrated probability distribution across 5 fault classes."""
         if not self.is_fitted:
-            # Fallback uniform probability
             probs = np.zeros((X.shape[0], 5), dtype=np.float32)
             probs[:, 0] = 1.0
             return probs
@@ -74,13 +89,21 @@ class FaultClassifier:
         return predicted_types, confidences
 
     def save(self, json_path: str, calibrated_path: str):
-        self.base_model.save_model(json_path)
+        if HAS_XGBOOST and hasattr(self.base_model, "save_model"):
+            self.base_model.save_model(json_path)
+        else:
+            joblib.dump(self.base_model, json_path.replace(".json", ".joblib"))
         if self.calibrated_model is not None:
             joblib.dump(self.calibrated_model, calibrated_path)
 
     def load(self, json_path: str, calibrated_path: Optional[str] = None):
-        self.base_model = xgb.XGBClassifier()
-        self.base_model.load_model(json_path)
+        joblib_path = json_path.replace(".json", ".joblib")
+        if HAS_XGBOOST and os.path.exists(json_path):
+            self.base_model = xgb.XGBClassifier()
+            self.base_model.load_model(json_path)
+        elif os.path.exists(joblib_path):
+            self.base_model = joblib.load(joblib_path)
+
         self.is_fitted = True
-        if calibrated_path and joblib.os.path.exists(calibrated_path):
+        if calibrated_path and os.path.exists(calibrated_path):
             self.calibrated_model = joblib.load(calibrated_path)

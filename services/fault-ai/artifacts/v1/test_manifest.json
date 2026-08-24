@@ -1,0 +1,302 @@
+[
+  {
+    "missionId": "MIS-NON-000",
+    "scenario_family": "NONE",
+    "fault_onset_sample": null,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-NON-001",
+    "scenario_family": "NONE",
+    "fault_onset_sample": null,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-NON-002",
+    "scenario_family": "NONE",
+    "fault_onset_sample": null,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-NON-003",
+    "scenario_family": "NONE",
+    "fault_onset_sample": null,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-NON-004",
+    "scenario_family": "NONE",
+    "fault_onset_sample": null,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-NON-005",
+    "scenario_family": "NONE",
+    "fault_onset_sample": null,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-NON-006",
+    "scenario_family": "NONE",
+    "fault_onset_sample": null,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-NON-007",
+    "scenario_family": "NONE",
+    "fault_onset_sample": null,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-NON-008",
+    "scenario_family": "NONE",
+    "fault_onset_sample": null,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-NON-009",
+    "scenario_family": "NONE",
+    "fault_onset_sample": null,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OVE-010",
+    "scenario_family": "OVERHEATING",
+    "fault_onset_sample": 38,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OVE-011",
+    "scenario_family": "OVERHEATING",
+    "fault_onset_sample": 49,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OVE-012",
+    "scenario_family": "OVERHEATING",
+    "fault_onset_sample": 59,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OVE-013",
+    "scenario_family": "OVERHEATING",
+    "fault_onset_sample": 32,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OVE-014",
+    "scenario_family": "OVERHEATING",
+    "fault_onset_sample": 60,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OVE-015",
+    "scenario_family": "OVERHEATING",
+    "fault_onset_sample": 31,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OVE-016",
+    "scenario_family": "OVERHEATING",
+    "fault_onset_sample": 48,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OVE-017",
+    "scenario_family": "OVERHEATING",
+    "fault_onset_sample": 37,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OVE-018",
+    "scenario_family": "OVERHEATING",
+    "fault_onset_sample": 39,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OVE-019",
+    "scenario_family": "OVERHEATING",
+    "fault_onset_sample": 45,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OIL-020",
+    "scenario_family": "OIL_PRESSURE_DEGRADATION",
+    "fault_onset_sample": 59,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OIL-021",
+    "scenario_family": "OIL_PRESSURE_DEGRADATION",
+    "fault_onset_sample": 44,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OIL-022",
+    "scenario_family": "OIL_PRESSURE_DEGRADATION",
+    "fault_onset_sample": 45,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OIL-023",
+    "scenario_family": "OIL_PRESSURE_DEGRADATION",
+    "fault_onset_sample": 43,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OIL-024",
+    "scenario_family": "OIL_PRESSURE_DEGRADATION",
+    "fault_onset_sample": 32,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OIL-025",
+    "scenario_family": "OIL_PRESSURE_DEGRADATION",
+    "fault_onset_sample": 32,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OIL-026",
+    "scenario_family": "OIL_PRESSURE_DEGRADATION",
+    "fault_onset_sample": 53,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OIL-027",
+    "scenario_family": "OIL_PRESSURE_DEGRADATION",
+    "fault_onset_sample": 51,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OIL-028",
+    "scenario_family": "OIL_PRESSURE_DEGRADATION",
+    "fault_onset_sample": 59,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-OIL-029",
+    "scenario_family": "OIL_PRESSURE_DEGRADATION",
+    "fault_onset_sample": 40,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-VIB-030",
+    "scenario_family": "VIBRATION_MISFIRE",
+    "fault_onset_sample": 32,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-VIB-031",
+    "scenario_family": "VIBRATION_MISFIRE",
+    "fault_onset_sample": 38,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-VIB-032",
+    "scenario_family": "VIBRATION_MISFIRE",
+    "fault_onset_sample": 57,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-VIB-033",
+    "scenario_family": "VIBRATION_MISFIRE",
+    "fault_onset_sample": 44,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-VIB-034",
+    "scenario_family": "VIBRATION_MISFIRE",
+    "fault_onset_sample": 41,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-VIB-035",
+    "scenario_family": "VIBRATION_MISFIRE",
+    "fault_onset_sample": 55,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-VIB-036",
+    "scenario_family": "VIBRATION_MISFIRE",
+    "fault_onset_sample": 56,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-VIB-037",
+    "scenario_family": "VIBRATION_MISFIRE",
+    "fault_onset_sample": 34,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-VIB-038",
+    "scenario_family": "VIBRATION_MISFIRE",
+    "fault_onset_sample": 38,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-VIB-039",
+    "scenario_family": "VIBRATION_MISFIRE",
+    "fault_onset_sample": 46,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-SEN-040",
+    "scenario_family": "SENSOR_FAULT",
+    "fault_onset_sample": 34,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-SEN-041",
+    "scenario_family": "SENSOR_FAULT",
+    "fault_onset_sample": 45,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-SEN-042",
+    "scenario_family": "SENSOR_FAULT",
+    "fault_onset_sample": 53,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-SEN-043",
+    "scenario_family": "SENSOR_FAULT",
+    "fault_onset_sample": 36,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-SEN-044",
+    "scenario_family": "SENSOR_FAULT",
+    "fault_onset_sample": 55,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-SEN-045",
+    "scenario_family": "SENSOR_FAULT",
+    "fault_onset_sample": 34,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-SEN-046",
+    "scenario_family": "SENSOR_FAULT",
+    "fault_onset_sample": 42,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-SEN-047",
+    "scenario_family": "SENSOR_FAULT",
+    "fault_onset_sample": 32,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-SEN-048",
+    "scenario_family": "SENSOR_FAULT",
+    "fault_onset_sample": 36,
+    "total_samples": 120
+  },
+  {
+    "missionId": "MIS-SEN-049",
+    "scenario_family": "SENSOR_FAULT",
+    "fault_onset_sample": 32,
+    "total_samples": 120
+  }
+]

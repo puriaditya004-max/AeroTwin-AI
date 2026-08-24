@@ -1,7 +1,7 @@
 """
 M4 Fault AI - Pydantic Contracts
 
-Defines or imports canonical data contracts for TwinState, FaultPrediction, and related domain models.
+Canonical source of truth for TwinState, FaultPrediction, and domain models.
 """
 
 from datetime import datetime, timezone
@@ -42,12 +42,14 @@ class TwinState(BaseModel):
     derivedFeatures: DerivedFeatures
     stateQuality: StateQuality
     syncLagMs: Optional[float] = Field(default=None, ge=0)
+    faultOnsetTimestamp: Optional[datetime] = Field(default=None, description="Preset onset time for detection delay calculation in labeled replay")
 
 
 class TwinStateWindow(BaseModel):
     engineId: str
     missionId: str
     states: List[TwinState]
+    faultOnsetTimestamp: Optional[datetime] = None
 
 
 class FaultType(str, Enum):

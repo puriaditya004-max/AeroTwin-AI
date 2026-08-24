@@ -20,3 +20,8 @@ models/**/*.pkl
 models/**/*.onnx
 data/synthetic/*.csv
 data/synthetic/*.parquet
+
+# Generated Python egg-info and caches
+*.egg-info/
+.pytest_cache/
+services/fault-ai/*.egg-info/

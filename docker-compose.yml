@@ -117,10 +117,28 @@ services:
   #   depends_on:
   #     - control-api
   #
-  # fault-ai:                  # M4
-  #   build: ./services/fault-ai
-  #   depends_on:
-  #     - control-api
+  fault-ai:                  # M4
+    build:
+      context: ./services/fault-ai
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    environment:
+      PORT: 8004
+      M6_INGEST_URL: http://control-api:4000/ingest/fault
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      control-api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8004/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   #
   # rul-validation:            # M5
   #   build: ./services/rul-validation

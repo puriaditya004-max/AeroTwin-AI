@@ -42,14 +42,15 @@ services:
       timeout: 5s
       retries: 10
 
-  # One-shot job: applies Prisma migrations, then exits. control-api waits
-  # for this to finish successfully before it starts. Uses the "build" stage
-  # (has the Prisma CLI) rather than the slim "production" stage.
+    # One-shot job: applies Prisma migrations then seeds a test Engine+Mission,
+  # then exits. control-api waits for this to finish successfully before it
+  # starts. Uses the "build" stage (has the Prisma CLI + tsx) rather than the
+  # slim "production" stage.
   migrate:
     build:
       context: ./services/control-api
       target: build
-    command: ["npx", "prisma", "migrate", "deploy"]
+    command: ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed"]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-aerotwin}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-aerotwin}?schema=public
     depends_on:

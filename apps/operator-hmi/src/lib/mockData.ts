@@ -122,3 +122,69 @@ export function buildMockHistory(): { t: number; rpm: number; oilPressureKpa: nu
   }
   return points;
 }
+
+/**
+ * The "golden demo journey" from the architecture doc, as a sequence of
+ * MissionAdvisory snapshots: normal mission -> gradual oil-pressure fault
+ * injected -> health score falls -> fault model raises a traceable
+ * prediction -> RUL proxy changes -> operator gets an Inspect/Reduce Load
+ * advisory with contributing sensors. Used by MissionReplay in DEMO mode —
+ * once real ingest data exists, replay should switch to fetching
+ * GET /missions/:id/advisories instead (see MissionReplay.tsx comments).
+ */
+export const mockAdvisoryTimeline: MissionAdvisory[] = [
+  {
+    engineId: MOCK_ENGINE_ID,
+    missionId: MOCK_MISSION_ID,
+    correlationId: "corr-8f3a1c",
+    advisoryTime: "2026-08-22T09:10:00.000Z",
+    producerVersion: "control-api-1.0.0",
+    risk: "LOW",
+    action: "CONTINUE",
+    explanation: "All systems nominal. Health score 96.2, stable trend. No fault signals detected.",
+    inspectionRequired: false,
+    contributingSignals: { healthScore: 96.2, faultType: "NONE", faultConfidence: 0.02, rulCycles: 1180 },
+    sourceVersions: {},
+  },
+  {
+    engineId: MOCK_ENGINE_ID,
+    missionId: MOCK_MISSION_ID,
+    correlationId: "corr-8f3a1c",
+    advisoryTime: "2026-08-22T09:11:30.000Z",
+    producerVersion: "control-api-1.0.0",
+    risk: "LOW",
+    action: "CONTINUE",
+    explanation: "Oil pressure beginning a gradual decline, still within safe envelope. Health score 91.0.",
+    inspectionRequired: false,
+    contributingSignals: { healthScore: 91.0, faultType: "NONE", faultConfidence: 0.08, rulCycles: 920 },
+    sourceVersions: {},
+  },
+  {
+    engineId: MOCK_ENGINE_ID,
+    missionId: MOCK_MISSION_ID,
+    correlationId: "corr-8f3a1c",
+    advisoryTime: "2026-08-22T09:12:45.000Z",
+    producerVersion: "control-api-1.0.0",
+    risk: "MEDIUM",
+    action: "REDUCE_LOAD",
+    explanation:
+      "Oil pressure continuing to fall faster than expected. Fault model raising early oil-pressure-degradation signal at 46% confidence. Health score 82.4.",
+    inspectionRequired: false,
+    contributingSignals: { healthScore: 82.4, faultType: "OIL_PRESSURE_DEGRADATION", faultConfidence: 0.46, rulCycles: 610 },
+    sourceVersions: {},
+  },
+  {
+    engineId: MOCK_ENGINE_ID,
+    missionId: MOCK_MISSION_ID,
+    correlationId: "corr-8f3a1c",
+    advisoryTime: "2026-08-22T09:14:33.200Z",
+    producerVersion: "control-api-1.0.0",
+    risk: "HIGH",
+    action: "INSPECT",
+    explanation:
+      "Oil pressure has degraded steadily over 5 minutes and the fault model flags oil-pressure degradation with 87% confidence. Health score fell to 71.5, driven mainly by the pressure sub-score.",
+    inspectionRequired: true,
+    contributingSignals: { healthScore: 71.5, faultType: "OIL_PRESSURE_DEGRADATION", faultConfidence: 0.87, rulCycles: 340 },
+    sourceVersions: { healthSnapshotVersion: "rules-2026.08.1", faultPredictionVersion: "fault-clf-1.0.0", rulEstimateVersion: "rul-reg-0.1.0" },
+  },
+];

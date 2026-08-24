@@ -7,6 +7,7 @@ import { initSocketServer } from "./sockets";
 import { healthRouter } from "./routes/health";
 import { missionRouter } from "./routes/mission";
 import { ingestRouter } from "./routes/ingest";
+import { authRouter } from "./routes/auth";
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use("/health", healthRouter);
 app.use("/missions", missionRouter);
 app.use("/ingest", ingestRouter);
+app.use("/auth", authRouter);
 
 // Generic error handler — last middleware. Keeps error messages non-specific
 // to avoid leaking internals, per FocusForge's existing security pattern.

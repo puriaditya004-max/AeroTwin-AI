@@ -1,0 +1,28 @@
+service:
+  name: "m4-fault-ai"
+  version: "1.0.0"
+  port: 8004
+  host: "0.0.0.0"
+
+artifacts:
+  dir: "artifacts/v1"
+  model_path: "artifacts/v1/model.joblib"
+  isolation_forest_path: "artifacts/v1/isolation_forest.joblib"
+  xgboost_path: "artifacts/v1/xgboost_fault.json"
+  feature_pipeline_path: "artifacts/v1/feature_pipeline.joblib"
+  feature_spec_path: "features/spec.yaml"
+  label_map_path: "artifacts/v1/label_map.json"
+  thresholds_path: "artifacts/v1/thresholds.yaml"
+
+thresholds:
+  anomaly_cutoff: 0.55
+  classifier_confidence_cutoff: 0.60
+  stale_data_max_lag_ms: 5000.0
+
+fusion:
+  require_good_state: true
+  enable_shap: true
+
+endpoints:
+  m6_ingest_url: "http://localhost:8006/ingest/fault"
+  redis_url: "redis://localhost:6379/0"

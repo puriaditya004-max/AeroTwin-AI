@@ -117,7 +117,7 @@ services:
   #   depends_on:
   #     - control-api
   #
-  fault-ai:                  # M4
+  fault-ai:                  # M4 API Service
     build:
       context: ./services/fault-ai
     restart: unless-stopped
@@ -138,6 +138,24 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  fault-ai-worker:           # M4 Redis Consumer Worker
+    build:
+      context: ./services/fault-ai
+    command: python -m app.worker
+    restart: unless-stopped
+    environment:
+      M6_INGEST_URL: http://control-api:4000/ingest/fault
+      M4_PREDICT_URL: http://fault-ai:8004/predict
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+      control-api:
+        condition: service_healthy
+      fault-ai:
+        condition: service_healthy
+
 
   #
   # rul-validation:            # M5

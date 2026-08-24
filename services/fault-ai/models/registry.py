@@ -1,7 +1,7 @@
 """
 Gate 07: Model Registry and Artifact Loader
 
-Handles model loading, versioning, checksum validation, and startup tests.
+Handles model loading, checksum validation, artifact metadata, and strict readiness checking.
 """
 
 import hashlib
@@ -17,7 +17,7 @@ from models.fusion import DecisionFusionPolicy
 
 
 class ModelRegistry:
-    """Manages promoted model artifacts and runtime inference pipelines."""
+    """Manages promoted model artifacts, checksums, and runtime pipelines."""
 
     def __init__(self, artifacts_dir: str = "artifacts/v1"):
         self.artifacts_dir = artifacts_dir
@@ -29,7 +29,7 @@ class ModelRegistry:
         self.is_loaded = False
 
     def calculate_checksum(self, filepath: str) -> str:
-        """Calculates SHA256 checksum of a file."""
+        """Calculates SHA256 checksum of an artifact file."""
         if not os.path.exists(filepath):
             return "MISSING"
         hasher = hashlib.sha256()
@@ -38,31 +38,53 @@ class ModelRegistry:
                 hasher.update(chunk)
         return hasher.hexdigest()
 
-    def load_artifacts(self) -> bool:
-        """Loads all trained model artifacts from the specified directory."""
+    def load_artifacts(()) -> bool:
+        """
+        Loads all required model artifacts from disk.
+        Returns True and sets is_loaded=True ONLY if required artifacts exist and load cleanly.
+        """
         if not os.path.exists(self.artifacts_dir):
-            os.makedirs(self.artifacts_dir, exist_ok=True)
+            self.is_loaded = False
             return False
 
         iforest_path = os.path.join(self.artifacts_dir, "isolation_forest.joblib")
-        xgb_path = os.path.join(self.artifacts_dir, "xgboost_fault.json")
+        xgb_json_path = os.path.join(self.artifacts_dir, "xgboost_fault.json")
+        xgb_joblib_path = os.path.join(self.artifacts_dir, "xgboost_fault.joblib")
         calibrated_path = os.path.join(self.artifacts_dir, "calibrated_classifier.joblib")
 
-        if os.path.exists(iforest_path):
+        # Strict check: At least Isolation Forest and one classifier artifact must exist
+        has_iforest = os.path.exists(iforest_path)
+        has_classifier = os.path.exists(xgb_json_path) or os.path.exists(xgb_joblib_path)
+
+        if not has_iforest or not has_classifier:
+            self.is_loaded = False
+            return False
+
+        try:
             self.anomaly_engine.load(iforest_path)
+            self.classifier.load(
+                xgb_json_path,
+                calibrated_path if os.path.exists(calibrated_path) else None
+            )
+            if hasattr(self.classifier.base_model, "predict_proba"):
+                self.explainer.set_model(self.classifier.base_model)
 
-        if os.path.exists(xgb_path):
-            self.classifier.load(xgb_path, calibrated_path if os.path.exists(calibrated_path) else None)
-            self.explainer.set_model(self.classifier.base_model)
+            self.is_loaded = True
+            return True
+        except Exception:
+            self.is_loaded = False
+            return False
 
-        self.is_loaded = True
-        return True
+    def get_manifest(()) -> Dict[str, Any]:
+        """Returns checksum manifest and readiness status for audit traceability."""
+        iforest_path = os.path.join(self.artifacts_dir, "isolation_forest.joblib")
+        xgb_path = os.path.join(self.artifacts_dir, "xgboost_fault.json")
+        metrics_path = os.path.join(self.artifacts_dir, "metrics.json")
 
-    def get_manifest(self) -> Dict[str, Any]:
-        """Returns checksum manifest for audit traceability."""
         return {
-            "isolation_forest_sha256": self.calculate_checksum(os.path.join(self.artifacts_dir, "isolation_forest.joblib")),
-            "xgboost_sha256": self.calculate_checksum(os.path.join(self.artifacts_dir, "xgboost_fault.json")),
+            "is_loaded": self.is_loaded,
             "artifacts_dir": self.artifacts_dir,
-            "is_loaded": self.is_loaded
+            "isolation_forest_sha256": self.calculate_checksum(iforest_path),
+            "xgboost_classifier_sha256": self.calculate_checksum(xgb_path),
+            "metrics_json_sha256": self.calculate_checksum(metrics_path)
         }

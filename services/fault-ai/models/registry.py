@@ -38,7 +38,7 @@ class ModelRegistry:
                 hasher.update(chunk)
         return hasher.hexdigest()
 
-    def load_artifacts(()) -> bool:
+    def load_artifacts(self) -> bool:
         """
         Loads all required model artifacts from disk.
         Returns True and sets is_loaded=True ONLY if required artifacts exist and load cleanly.
@@ -52,7 +52,6 @@ class ModelRegistry:
         xgb_joblib_path = os.path.join(self.artifacts_dir, "xgboost_fault.joblib")
         calibrated_path = os.path.join(self.artifacts_dir, "calibrated_classifier.joblib")
 
-        # Strict check: At least Isolation Forest and one classifier artifact must exist
         has_iforest = os.path.exists(iforest_path)
         has_classifier = os.path.exists(xgb_json_path) or os.path.exists(xgb_joblib_path)
 
@@ -75,7 +74,7 @@ class ModelRegistry:
             self.is_loaded = False
             return False
 
-    def get_manifest(()) -> Dict[str, Any]:
+    def get_manifest(self) -> Dict[str, Any]:
         """Returns checksum manifest and readiness status for audit traceability."""
         iforest_path = os.path.join(self.artifacts_dir, "isolation_forest.joblib")
         xgb_path = os.path.join(self.artifacts_dir, "xgboost_fault.json")

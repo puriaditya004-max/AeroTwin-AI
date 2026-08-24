@@ -1,40 +1,69 @@
-# M2 — Digital Twin & State Estimation
+# M2 - Digital Twin and State Estimation
 
-**Owner:** TBD | **Workload:** 16% | **Commitment:** Core MVP
-**Branch:** `feature/digital-twin`
+**Owner:** M2 | **Status:** Production-grade demonstrator implementation
+**Consumes:** `telemetry.frame.v1` | **Produces:** `twin.state.v1`
 
-## Problem Owned
-Maintain a continuously synchronized virtual engine state from imperfect telemetry.
+M2 converts imperfect M1 telemetry into synchronized `TwinState` events for
+M3, M4, M5, and M6. It owns synchronization, dedupe, rolling windows, state
+estimation, quality assignment, latest-state API, Redis publishing, and
+operational visibility. It does not predict faults, RUL, health rules, or
+mission advisories.
 
-## Stack
-Python 3.12, FastAPI, Pydantic, NumPy, SciPy, Redis client, PostgreSQL/TimescaleDB, Pytest
+## Build Gates
 
-## Implementation Checklist
-- [ ] Consume `TelemetryFrame` events; align timestamps, units, mission identifiers
-- [ ] Maintain latest state, rolling windows, derived load/temperature/pressure margins
-- [ ] Implement missing-value policy, stale-state detection, state-quality scoring
-- [ ] Expose `TwinState` via internal API; publish `state.updated` events
-- [ ] Persist selected state snapshots (not every duplicate calculation)
-- [ ] Measure synchronization lag; provide health endpoint
+| Gate | Capability | Status |
+| --- | --- | --- |
+| 01 | Contract-safe service skeleton and config | Complete |
+| 02 | Redis Streams consumer group `m2-twin-engine` | Complete |
+| 03 | Schema validation, deterministic dedupe, late-frame guard | Complete |
+| 04 | Per `engineId + missionId` rolling windows | Complete |
+| 05 | Load, margins, and required derived features | Complete |
+| 06 | GOOD / DEGRADED / STALE state quality policy | Complete |
+| 07 | `twin.state.v1` publisher and latest-state API | Complete |
+| 08 | In-process checkpoint for latest state and stream progress | Complete |
+| 09 | Docker Compose service + worker integration | Complete |
+| 10 | Tests and explanation notes | Complete |
 
-## Required Outputs
-- twin-engine service
-- `TwinState` contract
-- State snapshot writer
-- Sync metrics
+## Runtime
 
-## Acceptance Tests
-- Timestamp alignment
-- Stale state handling
-- Restart recovery
-- Target update lag met
+```powershell
+cd C:\Users\puria\Downloads\AeroTwin-AI
+docker compose up --build twin-engine twin-engine-worker redis
+```
 
-## Contracts
-- **Consumes:** `TelemetryFrame` from M1
-- **Produces:** `TwinState`: `stateTime, load, margins, derivedFeatures, stateQuality` → **consumed by M3/M4/M5**
+Local API:
 
-## Judge Explanation Responsibility
-How telemetry becomes synchronized state, how missing data affects confidence, why a digital twin is more than a live chart.
+- `GET http://localhost:8002/health/live`
+- `GET http://localhost:8002/health/ready`
+- `GET http://localhost:8002/state/latest`
+- `GET http://localhost:8002/state/{engineId}`
+- `GET http://localhost:8002/state/{engineId}/{missionId}`
+- `GET http://localhost:8002/metrics`
 
-## Handoff
-Consumes M1 frames. Provides `TwinState` to M3, M4, M5. Exposes health status to M6.
+## Development
+
+```powershell
+cd services\twin-engine
+python -m pip install -e .[dev]
+pytest
+```
+
+## Contract Lock
+
+M2 keeps the shared `TelemetryFrame` and `TwinState` fields unchanged:
+
+- Preserves `engineId`, `missionId`, `correlationId`, and event timestamp.
+- Reads `telemetry.frame.v1`.
+- Publishes `twin.state.v1`.
+- Emits `TwinState.stateQuality` as `GOOD`, `DEGRADED`, or `STALE`.
+- Uses the required `margins` and `derivedFeatures` objects.
+
+Any future schema change requires a matching JSON Schema update and ADR in
+`docs/decisions/`.
+
+## Judge Explanation
+
+M2 is the synchronized engine state layer. Bad or late telemetry does not become
+a fake fresh state. Instead, the state quality degrades or becomes stale, while
+the latest trustworthy rolling-window context is preserved for downstream
+modules.

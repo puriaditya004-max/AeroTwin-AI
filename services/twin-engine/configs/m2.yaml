@@ -1,0 +1,29 @@
+service:
+  name: m2-twin-engine
+  version: 1.0.0
+  port: 8002
+
+streams:
+  input: telemetry.frame.v1
+  output: twin.state.v1
+  group: m2-twin-engine
+  consumer: m2-worker-1
+
+sync:
+  primaryWindowSeconds: 30
+  maxWindowSamples: 120
+  reorderToleranceMs: 2000
+  staleAfterMs: 5000
+  idempotencyTtl: 5000
+
+estimator:
+  maxRpm: 3600
+  maxFuelFlowLph: 80
+  tempLimitC: 120
+  vibrationLimitMmS: 12
+  baseOilPressureMinKpa: 180
+  loadOilPressureSlopeKpa: 1.2
+  loadWeights:
+    throttle: 0.45
+    rpm: 0.35
+    fuelFlow: 0.20

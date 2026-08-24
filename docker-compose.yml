@@ -106,11 +106,44 @@ services:
   #     redis:
   #       condition: service_healthy
   #
-  # twin-engine:               # M2
-  #   build: ./services/twin-engine
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
+  twin-engine:               # M2 API Service
+    build:
+      context: ./services/twin-engine
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      PORT: 8002
+      REDIS_URL: redis://redis:6379
+      M2_INPUT_STREAM: telemetry.frame.v1
+      M2_OUTPUT_STREAM: twin.state.v1
+      M2_CONSUMER_GROUP: m2-twin-engine
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8002/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  twin-engine-worker:        # M2 Redis Consumer Worker
+    build:
+      context: ./services/twin-engine
+    command: python -m app.worker
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379
+      M2_INPUT_STREAM: telemetry.frame.v1
+      M2_OUTPUT_STREAM: twin.state.v1
+      M2_CONSUMER_GROUP: m2-twin-engine
+      M2_CONSUMER_NAME: m2-worker-1
+    depends_on:
+      redis:
+        condition: service_healthy
+      twin-engine:
+        condition: service_healthy
   #
   # health-monitor:            # M3
   #   build: ./services/health-monitor

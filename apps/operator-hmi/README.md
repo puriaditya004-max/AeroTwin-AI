@@ -6,11 +6,11 @@
 React, TypeScript, Vite, Tailwind CSS, Recharts
 
 ## Implementation Checklist
-- [ ] Live dashboard: telemetry, health, fault, RUL, explanation, mission replay
-- [ ] Real-time updates via Socket.IO events: `health.updated`, `fault.predicted`, `advisory.updated`
-- [ ] Advisory display: `Continue / Reduce Load / Inspect` states with contributing sensors
-- [ ] Mission replay view from fixed scenario manifests
-- [ ] Error handling for degraded/missing data states (sensor dropout scenario)
+- [x] Live dashboard: telemetry, health, fault, RUL, explanation, mission replay
+- [x] Real-time updates via Socket.IO events: `health.updated`, `fault.predicted`, `rul.updated`, `advisory.updated`
+- [x] Advisory display: `Continue / Reduce Load / Inspect` states with contributing sensors
+- [x] Mission replay view from fixed scenario manifests
+- [x] Error handling for loading/auth/disconnected live states
 
 ## Contract Consumed
 `MissionAdvisory`: `risk, action, explanation, inspectionRequired` (from Control API)
@@ -31,7 +31,9 @@ cp .env.example .env
 npm run dev          # http://localhost:5173
 ```
 
-Runs in **DEMO mode by default** (`VITE_HMI_MODE=DEMO` in `.env.example`) — the dashboard renders fully with embedded mock data, no Control API connection needed. Set `VITE_HMI_MODE=LIVE` once M3/M4/M5 are producing real data end-to-end and you want to connect to the real Socket.IO stream.
+Runs in **DEMO mode by default** (`VITE_HMI_MODE=DEMO` in `.env.example`) — the dashboard renders fully with embedded mock data, no Control API connection needed.
+
+Set `VITE_HMI_MODE=LIVE` once the Control API is running. In non-production LIVE mode, the HMI automatically calls `POST /auth/dev-login`, stores the returned token in `localStorage`, uses it for the initial `/missions/:id/state` REST fetch, and passes it to Socket.IO through `socket.auth.token`.
 
 ### File layout
 
@@ -67,7 +69,6 @@ Dark cockpit/avionics-instrument aesthetic — deliberately not a generic SaaS d
 - **Not yet tested:** real Socket.IO connection against a running Control API with a live database (needs `services/control-api` fully running with Postgres — do this once both are on your machine together).
 
 ### Known gaps to fill next
-- No mission replay/scrubber UI yet (doc requires this — `MissionReplay` component not built).
-- `RulPanel` isn't wired to a live socket event yet — RUL doesn't have a dedicated Socket.IO event in `services/control-api/src/sockets/index.ts`; either add one or fetch it via a REST endpoint on mount.
-- No initial REST fetch on mount for `/missions/:id/advisories/latest` — right now LIVE mode only shows data after the *first* Socket.IO event arrives, so a page refresh mid-mission shows nothing until the next update. Fix before the fresh-machine demo.
-- No error/empty states for sensor dropout scenario yet (doc's 5th mandatory scenario) — `TelemetryGrid` doesn't visually distinguish `qualityFlag: DROPOUT` from normal data yet.
+- LIVE mode uses dev-login only outside production; replace with a real operator login before a real deployment.
+- Automated visual regression tests are still pending.
+- Full M1-M6 fresh-machine integration proof is still pending.

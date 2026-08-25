@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TopBar } from "./components/TopBar";
 import { RiskBanner } from "./components/RiskBanner";
 import { HealthGauge } from "./components/HealthGauge";
@@ -23,6 +23,7 @@ import {
 // data end-to-end. Until then DEMO mode lets the dashboard be reviewed and
 // used for the backup pitch recording without a live backend.
 const MODE: "LIVE" | "DEMO" = (import.meta.env.VITE_HMI_MODE as "LIVE" | "DEMO") ?? "DEMO";
+const CONTROL_API_URL = import.meta.env.VITE_CONTROL_API_URL ?? "http://localhost:4000";
 
 type View = "live" | "replay";
 
@@ -30,13 +31,41 @@ export default function App() {
   const missionId = MOCK_MISSION_ID;
   const engineId = MOCK_ENGINE_ID;
   const [view, setView] = useState<View>("live");
+  const [authToken, setAuthToken] = useState<string | undefined>(() =>
+    MODE === "LIVE" ? window.localStorage.getItem("aerotwin.devToken") ?? undefined : undefined
+  );
+  const [authError, setAuthError] = useState<string | undefined>();
 
-  // authToken is undefined until a real login flow exists (see control-api
-  // README "Known gaps" — POST /auth/dev-login is available for manual
-  // testing but not yet wired into the HMI). GET /missions/:id/state and
-  // /missions/:id/advisories will 401 in LIVE mode until that's threaded
-  // through — expected, not a bug in this hook.
-  const live = useMissionSocket(missionId, undefined);
+  useEffect(() => {
+    if (MODE !== "LIVE" || authToken) return;
+    let cancelled = false;
+
+    async function loginForDemo() {
+      try {
+        const res = await fetch(`${CONTROL_API_URL}/auth/dev-login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: "OPERATOR" }),
+        });
+        if (!res.ok) {
+          throw new Error(`dev-login failed with ${res.status}`);
+        }
+        const data = (await res.json()) as { token: string };
+        if (cancelled) return;
+        window.localStorage.setItem("aerotwin.devToken", data.token);
+        setAuthToken(data.token);
+      } catch (err) {
+        if (!cancelled) setAuthError(err instanceof Error ? err.message : "Unable to create dev session");
+      }
+    }
+
+    loginForDemo();
+    return () => {
+      cancelled = true;
+    };
+  }, [authToken]);
+
+  const live = useMissionSocket(missionId, authToken);
   const [advisoryHistory] = useState(() => [mockAdvisory]);
   const history = useMemo(() => buildMockHistory(), []);
 
@@ -45,6 +74,7 @@ export default function App() {
   const rul = MODE === "LIVE" ? live.rul : mockRul;
   const advisory = MODE === "LIVE" ? live.advisory : mockAdvisory;
   const connected = MODE === "LIVE" ? live.connected : true;
+  const loadingLive = MODE === "LIVE" && (!authToken || live.loadingInitialState);
 
   const currentPoint = history[history.length - 1];
   const sensorQuality = MODE === "LIVE" ? undefined : "OK"; // wire to latest TelemetryFrame.qualityFlag once M1/M2 feed is live
@@ -66,6 +96,14 @@ export default function App() {
 
         {view === "live" ? (
           <>
+            {loadingLive && (
+              <div className="panel p-4 text-sm text-text-muted">Connecting to Control API and loading latest mission state...</div>
+            )}
+            {authError && (
+              <div className="panel border-warn/40 p-4 text-sm text-warn">
+                Live auth unavailable: {authError}. Demo mode still works for offline review.
+              </div>
+            )}
             <RiskBanner advisory={advisory} />
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[auto_1fr]">

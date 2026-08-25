@@ -68,9 +68,28 @@ model Mission {
   predictions      Prediction[]
   advisories       Advisory[]
   auditEntries     AuditEntry[]
+  ingestEvents     IngestEvent[]
 
   @@index([engineId])
   @@map("missions")
+}
+
+// ---------------------------------------------------------------------------
+// IngestEvent  (idempotency ledger for upstream module retries)
+// ---------------------------------------------------------------------------
+
+model IngestEvent {
+  id            String         @id @default(cuid())
+  key           String         @unique
+  kind          IngestKind
+  missionId     String
+  mission       Mission        @relation(fields: [missionId], references: [id])
+  correlationId String
+  payloadHash   String
+  createdAt     DateTime       @default(now())
+
+  @@index([missionId, kind, createdAt])
+  @@map("ingest_events")
 }
 
 // ---------------------------------------------------------------------------
@@ -122,6 +141,12 @@ model HealthSnapshot {
 // ---------------------------------------------------------------------------
 
 enum PredictionKind {
+  FAULT
+  RUL
+}
+
+enum IngestKind {
+  HEALTH
   FAULT
   RUL
 }

@@ -5,10 +5,21 @@ import { HealthSnapshotSchema, FaultPredictionSchema, RulEstimateSchema } from "
 import { emitHealthUpdated, emitFaultPredicted, emitRulUpdated, emitAdvisoryUpdated } from "../sockets";
 import { buildMissionAdvisory } from "../services/advisory";
 import { logAudit } from "../services/audit";
+import { buildIdempotencyKey, hashPayload, reserveIdempotencyKey, type PayloadKind } from "../services/ingest/idempotency";
+import {
+  ensureMission,
+  hydrateFaultFromRow,
+  hydrateHealthFromRow,
+  hydrateRulFromRow,
+  persistFaultPrediction,
+  persistHealthSnapshot,
+  persistRulEstimate,
+} from "../services/ingest/persistence";
+import { logEvent, nowMs } from "../services/logging";
 
 export const ingestRouter = Router();
 
-const ADVISORY_PRODUCER_VERSION = "control-api-0.1.0";
+const ADVISORY_PRODUCER_VERSION = process.env.M6_ADVISORY_PRODUCER_VERSION ?? "control-api-0.2.0";
 
 /**
  * POST /ingest/health  — M3 pushes HealthSnapshot here.
@@ -16,26 +27,26 @@ const ADVISORY_PRODUCER_VERSION = "control-api-0.1.0";
  * mission advisory using the latest known fault/RUL data for this mission.
  */
 ingestRouter.post("/health", validateBody(HealthSnapshotSchema), async (req, res) => {
+  const startedAt = nowMs();
   const health = req.body as import("../types/contracts").HealthSnapshot;
+  await ensureMission(health.engineId, health.missionId);
+  const idempotency = await applyIdempotency(req.header("X-Idempotency-Key"), "HEALTH", health, health.snapshotTime);
+  if (idempotency.status === "duplicate") {
+    res.status(202).json({ status: "accepted", duplicate: true, idempotencyKey: idempotency.key });
+    return;
+  }
+  if (idempotency.status === "conflict") {
+    res.status(409).json({ error: "IDEMPOTENCY_CONFLICT", idempotencyKey: idempotency.key });
+    return;
+  }
 
-  await prisma.healthSnapshot.create({
-    data: {
-      missionId: health.missionId,
-      correlationId: health.correlationId,
-      snapshotTime: new Date(health.snapshotTime),
-      healthScore: health.healthScore,
-      trend: health.trend,
-      violatedRules: health.violatedRules,
-      reasonCodes: health.reasonCodes,
-      ruleVersion: health.ruleVersion,
-      producerVersion: health.producerVersion,
-      raw: health as unknown as object,
-    },
-  });
+  await persistHealthSnapshot(health);
 
   emitHealthUpdated(health.missionId, health);
 
   await recomputeAndBroadcastAdvisory(health.missionId, health.engineId, health.correlationId, health);
+
+  logIngest("HEALTH", health.missionId, health.engineId, health.correlationId, startedAt, "accepted");
 
   res.status(202).json({ status: "accepted" });
 });
@@ -44,21 +55,20 @@ ingestRouter.post("/health", validateBody(HealthSnapshotSchema), async (req, res
  * POST /ingest/fault — M4 pushes FaultPrediction here.
  */
 ingestRouter.post("/fault", validateBody(FaultPredictionSchema), async (req, res) => {
+  const startedAt = nowMs();
   const fault = req.body as import("../types/contracts").FaultPrediction;
+  await ensureMission(fault.engineId, fault.missionId);
+  const idempotency = await applyIdempotency(req.header("X-Idempotency-Key"), "FAULT", fault, fault.predictionTime);
+  if (idempotency.status === "duplicate") {
+    res.status(202).json({ status: "accepted", duplicate: true, idempotencyKey: idempotency.key });
+    return;
+  }
+  if (idempotency.status === "conflict") {
+    res.status(409).json({ error: "IDEMPOTENCY_CONFLICT", idempotencyKey: idempotency.key });
+    return;
+  }
 
-  await prisma.prediction.create({
-    data: {
-      missionId: fault.missionId,
-      correlationId: fault.correlationId,
-      kind: "FAULT",
-      predictionTime: new Date(fault.predictionTime),
-      faultType: fault.faultType,
-      confidence: fault.confidence,
-      anomalyScore: fault.anomalyScore,
-      producerVersion: fault.producerVersion,
-      raw: fault as unknown as object,
-    },
-  });
+  await persistFaultPrediction(fault);
 
   emitFaultPredicted(fault.missionId, fault);
 
@@ -70,72 +80,83 @@ ingestRouter.post("/fault", validateBody(FaultPredictionSchema), async (req, res
   if (latestHealth) {
     await recomputeAndBroadcastAdvisory(
       fault.missionId,
-      /* engineId */ (await prisma.mission.findUniqueOrThrow({ where: { id: fault.missionId } })).engineId,
+      fault.engineId,
       fault.correlationId,
       hydrateHealthFromRow(latestHealth),
       fault
     );
   }
 
-  res.status(202).json({ status: "accepted" });
+  logIngest("FAULT", fault.missionId, fault.engineId, fault.correlationId, startedAt, latestHealth ? "accepted" : "waiting_for_health");
+
+  res.status(202).json({ status: "accepted", advisory: latestHealth ? "updated" : "waiting_for_health" });
 });
 
 /**
  * POST /ingest/rul — M5 pushes RulEstimate here.
  */
 ingestRouter.post("/rul", validateBody(RulEstimateSchema), async (req, res) => {
+  const startedAt = nowMs();
   const rul = req.body as import("../types/contracts").RulEstimate;
+  await ensureMission(rul.engineId, rul.missionId);
+  const idempotency = await applyIdempotency(req.header("X-Idempotency-Key"), "RUL", rul, rul.estimateTime);
+  if (idempotency.status === "duplicate") {
+    res.status(202).json({ status: "accepted", duplicate: true, idempotencyKey: idempotency.key });
+    return;
+  }
+  if (idempotency.status === "conflict") {
+    res.status(409).json({ error: "IDEMPOTENCY_CONFLICT", idempotencyKey: idempotency.key });
+    return;
+  }
 
-  await prisma.prediction.create({
-    data: {
-      missionId: rul.missionId,
-      correlationId: rul.correlationId,
-      kind: "RUL",
-      predictionTime: new Date(rul.estimateTime),
-      cycles: rul.cycles,
-      lowerBound: rul.lowerBound,
-      upperBound: rul.upperBound,
-      rulTrend: rul.trend,
-      experimental: rul.experimental,
-      producerVersion: rul.producerVersion,
-      raw: rul as unknown as object,
-    },
-  });
+  await persistRulEstimate(rul);
 
-  // RUL doesn't trigger an immediate advisory recompute on its own in this
-  // baseline — it's folded in the next time health or fault triggers one.
-  // Adjust if the team decides RUL crossing a threshold should be its own trigger.
   emitRulUpdated(rul.missionId, rul);
 
-  res.status(202).json({ status: "accepted" });
+  const latestHealth = await prisma.healthSnapshot.findFirst({
+    where: { missionId: rul.missionId },
+    orderBy: { snapshotTime: "desc" },
+  });
+
+  if (latestHealth) {
+    await recomputeAndBroadcastAdvisory(
+      rul.missionId,
+      rul.engineId,
+      rul.correlationId,
+      hydrateHealthFromRow(latestHealth),
+      undefined,
+      rul
+    );
+  }
+
+  logIngest("RUL", rul.missionId, rul.engineId, rul.correlationId, startedAt, latestHealth ? "accepted" : "waiting_for_health");
+
+  res.status(202).json({ status: "accepted", advisory: latestHealth ? "updated" : "waiting_for_health" });
 });
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function hydrateHealthFromRow(row: {
-  raw: unknown;
-}): import("../types/contracts").HealthSnapshot {
-  return row.raw as import("../types/contracts").HealthSnapshot;
-}
-
 async function recomputeAndBroadcastAdvisory(
   missionId: string,
   engineId: string,
   correlationId: string,
   health: import("../types/contracts").HealthSnapshot,
-  faultOverride?: import("../types/contracts").FaultPrediction
+  faultOverride?: import("../types/contracts").FaultPrediction,
+  rulOverride?: import("../types/contracts").RulEstimate
 ): Promise<void> {
   const latestFaultRow =
     faultOverride ??
     (await prisma.prediction
       .findFirst({ where: { missionId, kind: "FAULT" }, orderBy: { predictionTime: "desc" } })
-      .then((row) => (row ? (row.raw as unknown as import("../types/contracts").FaultPrediction) : undefined)));
+      .then(hydrateFaultFromRow));
 
-  const latestRulRow = await prisma.prediction
-    .findFirst({ where: { missionId, kind: "RUL" }, orderBy: { predictionTime: "desc" } })
-    .then((row) => (row ? (row.raw as unknown as import("../types/contracts").RulEstimate) : undefined));
+  const latestRulRow =
+    rulOverride ??
+    (await prisma.prediction
+      .findFirst({ where: { missionId, kind: "RUL" }, orderBy: { predictionTime: "desc" } })
+      .then(hydrateRulFromRow));
 
   const advisory = buildMissionAdvisory({
     engineId,
@@ -162,6 +183,13 @@ async function recomputeAndBroadcastAdvisory(
   });
 
   emitAdvisoryUpdated(missionId, advisory);
+  logEvent("info", "advisory.created", {
+    missionId,
+    engineId,
+    correlationId,
+    advisoryRisk: advisory.risk,
+    action: advisory.action,
+  });
 
   if (advisory.risk === "CRITICAL" || advisory.risk === "HIGH") {
     await logAudit({
@@ -170,4 +198,45 @@ async function recomputeAndBroadcastAdvisory(
       detail: { risk: advisory.risk, action: advisory.action },
     });
   }
+}
+
+async function applyIdempotency(
+  headerValue: string | undefined,
+  kind: PayloadKind,
+  payload: { missionId: string; correlationId: string },
+  eventTime: string
+) {
+  const key = buildIdempotencyKey({
+    headerValue,
+    kind,
+    missionId: payload.missionId,
+    correlationId: payload.correlationId,
+    eventTime,
+  });
+  return reserveIdempotencyKey({
+    key,
+    payloadHash: hashPayload(payload),
+    missionId: payload.missionId,
+    correlationId: payload.correlationId,
+    kind,
+  });
+}
+
+function logIngest(
+  payloadKind: PayloadKind,
+  missionId: string,
+  engineId: string,
+  correlationId: string,
+  startedAt: number,
+  status: string
+): void {
+  logEvent("info", "ingest.accepted", {
+    route: `/ingest/${payloadKind.toLowerCase()}`,
+    missionId,
+    engineId,
+    correlationId,
+    payloadKind,
+    latencyMs: nowMs() - startedAt,
+    status,
+  });
 }

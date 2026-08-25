@@ -70,7 +70,10 @@ export function useMissionSocket(missionId: string, authToken?: string): LiveMis
 
   // Live socket subscription — takes over after initial state is loaded.
   useEffect(() => {
-    const socket = io(CONTROL_API_URL, { transports: ["websocket"] });
+    const socket = io(CONTROL_API_URL, {
+      transports: ["websocket"],
+      auth: authToken ? { token: authToken } : undefined,
+    });
     socketRef.current = socket;
 
     socket.on("connect", () => {
@@ -79,6 +82,10 @@ export function useMissionSocket(missionId: string, authToken?: string): LiveMis
     });
 
     socket.on("disconnect", () => setConnected(false));
+    socket.on("connect_error", (err) => {
+      console.error("[useMissionSocket] socket auth/connect failed:", err.message);
+      setConnected(false);
+    });
 
     socket.on("health.updated", (payload: HealthSnapshot) => setHealth(payload));
     socket.on("fault.predicted", (payload: FaultPrediction) => setFault(payload));

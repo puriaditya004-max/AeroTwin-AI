@@ -28,6 +28,7 @@ class TwinProcessor:
             settings.estimator,
             settings.sync.primaryWindowSeconds,
             settings.sync.staleAfterMs,
+            settings.engineProfile,
         )
         self.checkpoint = checkpoint or InMemoryCheckpointStore()
         self._sync_lag_samples: list[float] = []

@@ -1,0 +1,39 @@
+profileVersion: sih-demo-engine-profile@1.0.0
+profileId: aero-piston-demo
+disclaimer: Demonstrator defaults only. Not certified DRDO engine limits.
+
+rpm:
+  minOperating: 700
+  maxOperating: 3600
+
+temperature:
+  chtWarningC: 205
+  chtCriticalC: 230
+  egtWarningC: 760
+  egtCriticalC: 820
+  oilWarningC: 115
+  oilCriticalC: 130
+  coolantWarningC: 110
+  coolantCriticalC: 120
+
+pressure:
+  oilMinKpa: 180
+  oilMaxKpa: 700
+  loadSlopeKpa: 1.2
+
+vibration:
+  warningMmS: 8
+  criticalMmS: 12
+
+fuel:
+  maxFlowLph: 80
+  idleFlowLph: 4
+
+electrical:
+  batteryMinV: 22
+  alternatorMinV: 24
+  alternatorMaxV: 30
+
+injection:
+  nominalTimingDeg: 18
+  toleranceDeg: 5

@@ -2,6 +2,7 @@ service:
   name: m2-twin-engine
   version: 1.0.0
   port: 8002
+  engineProfilePath: configs/engine_profile.sih-demo.yaml
 
 streams:
   input: telemetry.frame.v1

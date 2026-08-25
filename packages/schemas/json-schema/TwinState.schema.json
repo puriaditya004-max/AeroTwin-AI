@@ -8,6 +8,7 @@
   "additionalProperties": true,
   "properties": {
     "engineId": { "type": "string" },
+    "schemaVersion": { "type": "string", "description": "Optional additive schema version. v1 payloads may omit this." },
     "missionId": { "type": "string" },
     "correlationId": { "type": "string" },
     "stateTime": { "type": "string", "format": "date-time", "description": "UTC ISO 8601 time this state estimate applies to." },
@@ -36,7 +37,28 @@
         "rollingMeanRpm": { "type": "number" },
         "rollingStdVibration": { "type": "number" },
         "rateOfChangeOilTempCPerMin": { "type": "number" },
-        "sampleWindowSeconds": { "type": "number", "minimum": 0 }
+        "sampleWindowSeconds": { "type": "number", "minimum": 0 },
+        "featureVersion": { "type": "string" },
+        "chtMaxC": { "type": "number" },
+        "chtMeanC": { "type": "number" },
+        "chtSpreadC": { "type": "number" },
+        "chtSlopeCPerMin": { "type": "number" },
+        "egtMaxC": { "type": "number" },
+        "egtMeanC": { "type": "number" },
+        "egtSpreadC": { "type": "number" },
+        "egtSlopeCPerMin": { "type": "number" },
+        "oilPressureDeviationKpa": { "type": "number" },
+        "fuelFlowDeviationLph": { "type": "number" },
+        "injectionTimingDeviationDeg": { "type": "number" },
+        "alternatorVoltageMarginV": { "type": "number" },
+        "batteryVoltageMarginV": { "type": "number" },
+        "vibrationRollingMeanMmS": { "type": "number" },
+        "vibrationSlopeMmSPerMin": { "type": "number" },
+        "vibrationPeakMmS": { "type": "number" },
+        "missingSensorRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "invalidSensorRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "stateConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reasonCodes": { "type": "array", "items": { "type": "string" } }
       }
     },
     "stateQuality": {

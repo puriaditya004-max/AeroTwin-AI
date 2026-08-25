@@ -31,6 +31,31 @@ def sample_frame(**overrides):
     return frame
 
 
+def v2_sensors():
+    return {
+        "rpm": 2450,
+        "oilPressureKpa": 430,
+        "oilTempC": 92,
+        "coolantTempC": 96,
+        "vibrationMmS": 3.2,
+        "fuelFlowLph": 35,
+        "throttlePct": 62,
+        "altitudeM": 1200,
+        "ambientTempC": 22,
+        "ambientPressureKpa": 88,
+        "chtCylindersC": [184, 187, 186, 185],
+        "egtCylindersC": [695, 702, 699, 701],
+        "alternatorVoltageV": 27.4,
+        "alternatorCurrentA": 18.2,
+        "batteryVoltageV": 25.1,
+        "injectionTimingDeg": 17.8,
+        "sensorQuality": {
+            "chtCylindersC": {"status": "OK"},
+            "egtCylindersC": {"status": "OK"},
+        },
+    }
+
+
 def processor():
     return TwinProcessor(get_settings())
 
@@ -46,6 +71,42 @@ def test_valid_telemetry_to_twin_state_preserves_contract_fields():
     assert 0 <= result.state.load <= 100
     assert result.state.derivedFeatures.sampleWindowSeconds == 30
     assert processor().metrics_snapshot()["averageSyncLagMs"] is None
+
+
+def test_v1_payload_without_optional_sensors_stays_backward_compatible():
+    result = processor().process_payload(sample_frame())
+
+    assert result.state is not None
+    assert result.state.schemaVersion == "1.0.0"
+    assert result.state.stateQuality == StateQuality.DEGRADED
+    assert "MISSING_chtCylindersC" in result.state.derivedFeatures.reasonCodes
+
+
+def test_v2_optional_sensors_generate_extended_features():
+    result = processor().process_payload(
+        sample_frame(schemaVersion="2.0.0", frameId="frame-1", sensors=v2_sensors())
+    )
+
+    assert result.state is not None
+    assert result.state.schemaVersion == "2.0.0"
+    assert result.state.derivedFeatures.featureVersion == "m2-features@2.0.0"
+    assert result.state.derivedFeatures.chtMaxC == 187
+    assert result.state.derivedFeatures.egtSpreadC == 7
+    assert result.state.derivedFeatures.injectionTimingDeviationDeg == -0.2
+    assert result.state.derivedFeatures.missingSensorRatio == 0
+    assert result.state.derivedFeatures.stateConfidence == 1
+
+
+def test_sensor_quality_metadata_degrades_state_and_records_reason():
+    sensors = v2_sensors()
+    sensors["sensorQuality"]["batteryVoltageV"] = {"status": "OUT_OF_RANGE", "reason": "below demo threshold"}
+
+    result = processor().process_payload(sample_frame(sensors=sensors))
+
+    assert result.state is not None
+    assert result.state.stateQuality == StateQuality.DEGRADED
+    assert "batteryVoltageV_OUT_OF_RANGE" in result.state.derivedFeatures.reasonCodes
+    assert result.state.derivedFeatures.invalidSensorRatio > 0
 
 
 def test_duplicate_frame_is_idempotent_and_does_not_publish_state_twice():

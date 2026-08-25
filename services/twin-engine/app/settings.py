@@ -37,6 +37,20 @@ class ServiceSettings(BaseModel):
     name: str
     version: str
     port: int
+    engineProfilePath: str = "configs/engine_profile.sih-demo.yaml"
+
+
+class EngineProfile(BaseModel):
+    profileVersion: str
+    profileId: str
+    disclaimer: str
+    rpm: dict[str, float]
+    temperature: dict[str, float]
+    pressure: dict[str, float]
+    vibration: dict[str, float]
+    fuel: dict[str, float]
+    electrical: dict[str, float]
+    injection: dict[str, float]
 
 
 class Settings(BaseModel):
@@ -44,6 +58,7 @@ class Settings(BaseModel):
     streams: StreamSettings
     sync: SyncSettings
     estimator: EstimatorSettings
+    engineProfile: EngineProfile
     redisUrl: str = "redis://localhost:6379/0"
 
 
@@ -61,4 +76,6 @@ def get_settings() -> Settings:
     raw["streams"]["output"] = os.getenv("M2_OUTPUT_STREAM", raw["streams"]["output"])
     raw["streams"]["group"] = os.getenv("M2_CONSUMER_GROUP", raw["streams"]["group"])
     raw["streams"]["consumer"] = os.getenv("M2_CONSUMER_NAME", raw["streams"]["consumer"])
+    profile_path = Path(os.getenv("M2_ENGINE_PROFILE_PATH", raw["service"]["engineProfilePath"]))
+    raw["engineProfile"] = _load_yaml(profile_path)
     return Settings.model_validate(raw)

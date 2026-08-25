@@ -1,4 +1,5 @@
 {
+  "schemaVersion": "2.0.0",
   "engineId": "ENG-001",
   "missionId": "MSN-OILPRESS-001",
   "correlationId": "corr-8f3a1c",
@@ -14,7 +15,25 @@
     "rollingMeanRpm": 2438.7,
     "rollingStdVibration": 0.41,
     "rateOfChangeOilTempCPerMin": 0.8,
-    "sampleWindowSeconds": 30
+    "sampleWindowSeconds": 30,
+    "featureVersion": "m2-features@2.0.0",
+    "chtMaxC": 187,
+    "chtMeanC": 185.5,
+    "chtSpreadC": 3,
+    "egtMaxC": 702,
+    "egtMeanC": 699.25,
+    "egtSpreadC": 7,
+    "oilPressureDeviationKpa": -51.7,
+    "fuelFlowDeviationLph": -37.1,
+    "injectionTimingDeviationDeg": -0.2,
+    "alternatorVoltageMarginV": 3.4,
+    "batteryVoltageMarginV": 3.1,
+    "vibrationRollingMeanMmS": 3.2,
+    "vibrationPeakMmS": 3.2,
+    "missingSensorRatio": 0,
+    "invalidSensorRatio": 0,
+    "stateConfidence": 1,
+    "reasonCodes": []
   },
   "stateQuality": "GOOD",
   "syncLagMs": 120

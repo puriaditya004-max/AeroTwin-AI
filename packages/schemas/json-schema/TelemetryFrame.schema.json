@@ -15,7 +15,7 @@
     "sensors": {
       "type": "object",
       "required": ["rpm", "oilPressureKpa", "oilTempC", "coolantTempC", "vibrationMmS", "fuelFlowLph", "throttlePct", "altitudeM", "ambientTempC", "ambientPressureKpa"],
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "rpm": { "type": "number", "minimum": 0, "maximum": 4000, "description": "Engine speed, revolutions per minute." },
         "oilPressureKpa": { "type": "number", "minimum": 0, "maximum": 1000, "description": "Oil pressure, kilopascals." },
@@ -26,9 +26,29 @@
         "throttlePct": { "type": "number", "minimum": 0, "maximum": 100, "description": "Throttle position, percent." },
         "altitudeM": { "type": "number", "minimum": 0, "maximum": 12000, "description": "Altitude, metres." },
         "ambientTempC": { "type": "number", "minimum": -60, "maximum": 60, "description": "Ambient air temperature, Celsius." },
-        "ambientPressureKpa": { "type": "number", "minimum": 10, "maximum": 110, "description": "Ambient air pressure, kilopascals." }
+        "ambientPressureKpa": { "type": "number", "minimum": 10, "maximum": 110, "description": "Ambient air pressure, kilopascals." },
+        "chtCylindersC": { "type": "array", "items": { "type": "number" }, "description": "Optional v2 cylinder-wise CHT values in Celsius." },
+        "egtCylindersC": { "type": "array", "items": { "type": "number" }, "description": "Optional v2 cylinder-wise EGT values in Celsius." },
+        "alternatorVoltageV": { "type": "number", "minimum": 0, "maximum": 40, "description": "Optional v2 alternator voltage." },
+        "alternatorCurrentA": { "type": "number", "minimum": -50, "maximum": 150, "description": "Optional v2 alternator current." },
+        "batteryVoltageV": { "type": "number", "minimum": 0, "maximum": 40, "description": "Optional v2 battery voltage." },
+        "injectionTimingDeg": { "type": "number", "minimum": -60, "maximum": 60, "description": "Optional v2 injection timing." },
+        "sensorQuality": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["status"],
+            "properties": {
+              "status": { "type": "string", "enum": ["OK", "MISSING", "STALE", "OUT_OF_RANGE", "DEGRADED"] },
+              "reason": { "type": "string" }
+            }
+          }
+        }
       }
     },
+    "schemaVersion": { "type": "string", "description": "Optional additive schema version. v1 payloads may omit this." },
+    "frameId": { "type": "string", "description": "Optional producer frame/event identifier." },
+    "ingestTimestamp": { "type": "string", "format": "date-time", "description": "Optional UTC ingest time." },
     "qualityFlag": {
       "type": "string",
       "enum": ["OK", "DEGRADED", "DROPOUT", "DUPLICATE", "OUT_OF_ORDER"],

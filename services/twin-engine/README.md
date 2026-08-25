@@ -60,6 +60,10 @@ M2 keeps the shared `TelemetryFrame` and `TwinState` fields unchanged:
 - Publishes `twin.state.v1`.
 - Emits `TwinState.stateQuality` as `GOOD`, `DEGRADED`, or `STALE`.
 - Uses the required `margins` and `derivedFeatures` objects.
+- Adds optional v2 telemetry for CHT/EGT cylinders, alternator, battery,
+  injection timing, and per-sensor quality metadata.
+- Uses `configs/engine_profile.sih-demo.yaml` for demonstrator-only operating
+  limits and feature calculations.
 
 Any future schema change requires a matching JSON Schema update and ADR in
 `docs/decisions/`.

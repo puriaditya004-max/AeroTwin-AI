@@ -158,6 +158,7 @@ services:
       - "8004:8004"
     environment:
       PORT: 8004
+      M4_ARTIFACTS_DIR: artifacts/v1
       M6_INGEST_URL: http://control-api:4000/ingest/fault
       REDIS_URL: redis://redis:6379
     depends_on:
@@ -181,6 +182,12 @@ services:
       M6_INGEST_URL: http://control-api:4000/ingest/fault
       M4_PREDICT_URL: http://fault-ai:8004/predict
       REDIS_URL: redis://redis:6379
+      M4_INPUT_STREAM: twin.state.v1
+      M4_CONSUMER_GROUP: m4-fault-ai
+      M4_CONSUMER_NAME: m4-worker-1
+      M4_DEAD_LETTER_STREAM: fault.prediction.dlq.v1
+      M4_PENDING_IDLE_MS: 30000
+      M4_DEAD_LETTER_AFTER_DELIVERIES: 5
     depends_on:
       redis:
         condition: service_healthy

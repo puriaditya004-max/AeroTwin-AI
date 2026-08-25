@@ -92,5 +92,13 @@ curl -X POST http://localhost:8004/predict \
 ## 🔌 API & Readiness Contracts
 
 - **`GET /health/live`**: Process liveness probe.
-- **`GET /health/ready`**: Model & feature pipeline readiness probe. Returns **HTTP 503** if model binary artifacts (`isolation_forest.joblib`, `xgboost_fault.json`) are absent or failed to load. Returns SHA256 checksum manifest when ready.
+- **`GET /health/ready`**: Model & feature pipeline readiness probe. Returns **HTTP 503** if model binary artifacts (`isolation_forest.joblib`, `xgboost_fault.json`) are absent or failed to load. Returns SHA256 checksum manifest, calibrated model checksum, model-card checksum, and the exact feature list when ready.
 - **`POST /predict`**: Accepts `TwinState` frame or `TwinStateWindow`. Returns `FaultPrediction` with `faultType`, `confidence`, `anomalyScore`, dynamic TreeSHAP `contributors`, and `detectionDelayMs` (for labeled replay scenarios).
+
+## 🧭 Worker Reliability Notes
+
+- Redis consumer group: `m4-fault-ai` on `twin.state.v1`.
+- Ack policy: messages are acknowledged only after `/predict` succeeds and M6 accepts the handoff.
+- Recovery: idle pending messages are reclaimed with `XAUTOCLAIM` before reading new stream entries.
+- Poison messages: malformed payloads or messages exceeding `M4_DEAD_LETTER_AFTER_DELIVERIES` are written to `fault.prediction.dlq.v1` with the original payload and failure reason.
+- Diagnostics: `M4Worker.snapshot_metrics()` exposes processed frame counts, M6 success/failure counts, pending recovery counts, DLQ counts, last error, and last prediction timestamp for tests and future operator health surfaces.

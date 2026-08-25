@@ -3,6 +3,7 @@ import json
 import pytest
 
 from app.contracts import TwinState
+from app.worker import M2Worker
 from ingest.consumer import decode_stream_payload
 from stream.publisher import TwinStatePublisher
 
@@ -57,3 +58,18 @@ async def test_twin_state_publisher_writes_canonical_payload_field():
     stream_name, fields = redis.calls[0]
     assert stream_name == "twin.state.v1"
     assert json.loads(fields["payload"])["correlationId"] == "corr-001"
+
+
+class PendingRedis:
+    async def xautoclaim(self, *args, **kwargs):
+        return ("0-0", [(b"1-0", {b"payload": b'{"engineId":"ENG"}'})], [])
+
+
+@pytest.mark.asyncio
+async def test_worker_claims_pending_messages_for_restart_recovery():
+    worker = M2Worker()
+
+    streams = await worker._read_pending(PendingRedis())
+
+    assert streams[0][0] == "telemetry.frame.v1"
+    assert streams[0][1][0][0] == b"1-0"

@@ -41,36 +41,16 @@ class M2Worker:
         log_event("worker_started", inputStream=self.settings.streams.input, outputStream=self.settings.streams.output)
         while True:
             try:
-                streams = await redis_client.xreadgroup(
-                    groupname=self.settings.streams.group,
-                    consumername=self.settings.streams.consumer,
-                    streams={self.settings.streams.input: ">"},
-                    count=10,
-                    block=2000,
-                )
-                for _, messages in streams:
-                    for message_id, message_data in messages:
-                        payload = decode_stream_payload(message_data)
-                        if payload is None:
-                            await redis_client.xack(self.settings.streams.input, self.settings.streams.group, message_id)
-                            continue
-                        result = self.processor.process_payload(payload, str(message_id))
-                        if result.state is not None:
-                            output_id = await publisher.publish(result.state)
-                            await durable_checkpoint.save(result.state, str(message_id))
-                            self.processor.metrics["statesPublished"] += 1
-                            log_event(
-                                "state_published",
-                                engineId=result.state.engineId,
-                                missionId=result.state.missionId,
-                                correlationId=result.state.correlationId,
-                                stateQuality=result.state.stateQuality.value,
-                                syncLagMs=result.state.syncLagMs,
-                                outputStream=self.settings.streams.output,
-                                outputMessageId=output_id,
-                            )
-                        if result.accepted or result.reason in {"schema_validation", "late"}:
-                            await redis_client.xack(self.settings.streams.input, self.settings.streams.group, message_id)
+                streams = await self._read_pending(redis_client)
+                if not streams:
+                    streams = await redis_client.xreadgroup(
+                        groupname=self.settings.streams.group,
+                        consumername=self.settings.streams.consumer,
+                        streams={self.settings.streams.input: ">"},
+                        count=10,
+                        block=2000,
+                    )
+                await self._process_streams(redis_client, publisher, durable_checkpoint, streams)
             except asyncio.CancelledError:
                 break
             except Exception as exc:
@@ -78,6 +58,64 @@ class M2Worker:
                 await asyncio.sleep(2.0)
 
         await redis_client.aclose()
+
+    async def _read_pending(self, redis_client):
+        try:
+            response = await redis_client.xautoclaim(
+                self.settings.streams.input,
+                self.settings.streams.group,
+                self.settings.streams.consumer,
+                min_idle_time=self.settings.sync.pendingIdleMs,
+                start_id="0-0",
+                count=10,
+            )
+        except Exception as exc:
+            log_event("pending_claim_skipped", error=str(exc))
+            return []
+
+        messages = []
+        if isinstance(response, (list, tuple)) and len(response) >= 2:
+            messages = response[1]
+        if not messages:
+            return []
+        log_event("pending_claimed", count=len(messages), stream=self.settings.streams.input)
+        return [(self.settings.streams.input, messages)]
+
+    async def _process_streams(self, redis_client, publisher, durable_checkpoint, streams) -> None:
+        for _, messages in streams:
+            for message_id, message_data in messages:
+                payload = decode_stream_payload(message_data)
+                if payload is None:
+                    await redis_client.xack(self.settings.streams.input, self.settings.streams.group, message_id)
+                    continue
+                result = self.processor.process_payload(payload, str(message_id))
+                if result.state is not None:
+                    try:
+                        output_id = await publisher.publish(result.state)
+                        await durable_checkpoint.save(result.state, str(message_id))
+                        self.processor.record_publish_success()
+                        log_event(
+                            "state_published",
+                            engineId=result.state.engineId,
+                            missionId=result.state.missionId,
+                            correlationId=result.state.correlationId,
+                            stateQuality=result.state.stateQuality.value,
+                            syncLagMs=result.state.syncLagMs,
+                            outputStream=self.settings.streams.output,
+                            outputMessageId=output_id,
+                        )
+                    except Exception as exc:
+                        self.processor.record_publish_failure()
+                        log_event(
+                            "state_publish_failed",
+                            engineId=result.state.engineId,
+                            missionId=result.state.missionId,
+                            correlationId=result.state.correlationId,
+                            error=str(exc),
+                        )
+                        continue
+                if result.accepted or result.reason in {"schema_validation", "late"}:
+                    await redis_client.xack(self.settings.streams.input, self.settings.streams.group, message_id)
 
 
 if __name__ == "__main__":

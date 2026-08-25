@@ -40,7 +40,7 @@ async def health_live():
         service=settings.service.name,
         version=settings.service.version,
         timestamp=datetime.now(timezone.utc),
-        details={"metrics": processor.metrics},
+        details={"metrics": processor.metrics_snapshot()},
     )
 
 
@@ -72,7 +72,7 @@ async def health_ready():
 
 @app.get("/metrics")
 async def metrics():
-    return processor.metrics
+    return processor.metrics_snapshot()
 
 
 @app.get("/state/latest")

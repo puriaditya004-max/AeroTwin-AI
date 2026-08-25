@@ -20,6 +20,7 @@ class SyncSettings(BaseModel):
     reorderToleranceMs: int
     staleAfterMs: int
     idempotencyTtl: int
+    pendingIdleMs: int
 
 
 class EstimatorSettings(BaseModel):

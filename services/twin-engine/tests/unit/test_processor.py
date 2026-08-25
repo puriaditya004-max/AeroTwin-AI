@@ -45,6 +45,7 @@ def test_valid_telemetry_to_twin_state_preserves_contract_fields():
     assert result.state.correlationId == "corr-001"
     assert 0 <= result.state.load <= 100
     assert result.state.derivedFeatures.sampleWindowSeconds == 30
+    assert processor().metrics_snapshot()["averageSyncLagMs"] is None
 
 
 def test_duplicate_frame_is_idempotent_and_does_not_publish_state_twice():
@@ -99,3 +100,15 @@ def test_per_mission_windows_are_isolated():
 
     assert len(engine.windows.latest("ENG-001", "MIS-A")) == 1
     assert len(engine.windows.latest("ENG-001", "MIS-B")) == 1
+
+
+def test_metrics_snapshot_reports_sync_lag_distribution():
+    engine = processor()
+    engine.process_payload(sample_frame(correlationId="corr-1"))
+    engine.process_payload(sample_frame(correlationId="corr-2"))
+
+    metrics = engine.metrics_snapshot()
+
+    assert metrics["lastSyncLagMs"] is not None
+    assert metrics["averageSyncLagMs"] is not None
+    assert metrics["p95SyncLagMs"] is not None

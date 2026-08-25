@@ -15,6 +15,7 @@ sync:
   reorderToleranceMs: 2000
   staleAfterMs: 5000
   idempotencyTtl: 5000
+  pendingIdleMs: 30000
 
 estimator:
   maxRpm: 3600

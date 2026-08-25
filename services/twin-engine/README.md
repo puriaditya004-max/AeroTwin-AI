@@ -21,8 +21,8 @@ mission advisories.
 | 06 | GOOD / DEGRADED / STALE state quality policy | Complete |
 | 07 | `twin.state.v1` publisher and latest-state API | Complete |
 | 08 | In-process checkpoint plus Redis durable latest-state checkpoint | Complete |
-| 09 | Docker Compose service + worker integration | Complete |
-| 10 | Tests and explanation notes | Complete |
+| 09 | Docker Compose service + worker integration and pending-message recovery | Complete |
+| 10 | Tests, sync-lag metrics, and explanation notes | Complete |
 
 ## Runtime
 
@@ -39,6 +39,9 @@ Local API:
 - `GET http://localhost:8002/state/{engineId}`
 - `GET http://localhost:8002/state/{engineId}/{missionId}`
 - `GET http://localhost:8002/metrics`
+
+Metrics include consumed/rejected/deduped/late frames, publish failures,
+published state count, last sync lag, average sync lag, and p95 sync lag.
 
 ## Development
 

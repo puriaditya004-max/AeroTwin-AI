@@ -1,4 +1,5 @@
 from pydantic import ValidationError
+import statistics
 
 from app.contracts import TelemetryFrame, TwinState
 from app.logging import log_event
@@ -29,13 +30,35 @@ class TwinProcessor:
             settings.sync.staleAfterMs,
         )
         self.checkpoint = checkpoint or InMemoryCheckpointStore()
+        self._sync_lag_samples: list[float] = []
         self.metrics = {
             "framesConsumed": 0,
             "framesRejected": 0,
             "framesDeduped": 0,
             "lateFrames": 0,
             "statesPublished": 0,
+            "publishFailures": 0,
+            "lastSyncLagMs": None,
         }
+
+    def metrics_snapshot(self) -> dict:
+        snapshot = dict(self.metrics)
+        samples = self._sync_lag_samples[-500:]
+        if samples:
+            snapshot["averageSyncLagMs"] = round(float(statistics.mean(samples)), 3)
+            sorted_samples = sorted(samples)
+            index = min(len(sorted_samples) - 1, int(0.95 * (len(sorted_samples) - 1)))
+            snapshot["p95SyncLagMs"] = round(float(sorted_samples[index]), 3)
+        else:
+            snapshot["averageSyncLagMs"] = None
+            snapshot["p95SyncLagMs"] = None
+        return snapshot
+
+    def record_publish_success(self) -> None:
+        self.metrics["statesPublished"] += 1
+
+    def record_publish_failure(self) -> None:
+        self.metrics["publishFailures"] += 1
 
     def process_payload(self, payload: dict, stream_id: str | None = None) -> FrameProcessResult:
         self.metrics["framesConsumed"] += 1
@@ -67,6 +90,11 @@ class TwinProcessor:
 
         window = self.windows.add(frame)
         state = self.estimator.estimate(frame, window)
+        if state.syncLagMs is not None:
+            self.metrics["lastSyncLagMs"] = state.syncLagMs
+            self._sync_lag_samples.append(state.syncLagMs)
+            if len(self._sync_lag_samples) > 500:
+                self._sync_lag_samples = self._sync_lag_samples[-500:]
         self.checkpoint.save(state, stream_id)
         log_event(
             "state_estimated",

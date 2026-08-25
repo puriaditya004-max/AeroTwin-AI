@@ -1,0 +1,49 @@
+{
+  "macro_f1": 0.9928826286700403,
+  "confusion_matrix": [
+    [
+      622,
+      0,
+      3,
+      0,
+      0
+    ],
+    [
+      0,
+      147,
+      0,
+      0,
+      0
+    ],
+    [
+      5,
+      0,
+      133,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      129,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      161
+    ]
+  ],
+  "class_names": [
+    "NONE",
+    "OVERHEATING",
+    "OIL_PRESSURE_DEGRADATION",
+    "VIBRATION_MISFIRE",
+    "SENSOR_FAULT"
+  ],
+  "test_samples": 1200,
+  "target_f1_met": true
+}

@@ -9,7 +9,7 @@ from app.logging import log_event
 from app.processor import TwinProcessor
 from app.settings import get_settings
 from ingest.consumer import decode_stream_payload
-from storage.checkpoint import InMemoryCheckpointStore
+from storage.checkpoint import InMemoryCheckpointStore, RedisCheckpointStore
 from stream.publisher import TwinStatePublisher
 
 
@@ -25,6 +25,7 @@ class M2Worker:
 
         redis_client = redis_async.from_url(self.settings.redisUrl)
         publisher = TwinStatePublisher(redis_client, self.settings.streams.output)
+        durable_checkpoint = RedisCheckpointStore(redis_client)
 
         try:
             await redis_client.xgroup_create(
@@ -56,6 +57,7 @@ class M2Worker:
                         result = self.processor.process_payload(payload, str(message_id))
                         if result.state is not None:
                             output_id = await publisher.publish(result.state)
+                            await durable_checkpoint.save(result.state, str(message_id))
                             self.processor.metrics["statesPublished"] += 1
                             log_event(
                                 "state_published",

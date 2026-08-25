@@ -92,9 +92,15 @@ async def health_live():
 async def health_ready():
     """Readiness probe confirming model artifacts and pipelines are loaded."""
     if not registry.is_loaded:
+        manifest = registry.get_manifest()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Models or feature pipeline not loaded"
+            detail={
+                "message": "Models or feature pipeline not loaded",
+                "missingArtifacts": manifest.get("missing_artifacts", []),
+                "loadError": manifest.get("load_error"),
+                "artifactsDir": manifest.get("artifacts_dir"),
+            }
         )
     return HealthResponse(
         status="READY",

@@ -27,6 +27,8 @@ class ModelRegistry:
         self.explainer = TreeSHAPExplainer()
         self.fusion_policy = DecisionFusionPolicy()
         self.is_loaded = False
+        self.missing_artifacts: list[str] = []
+        self.load_error: str | None = None
 
     def calculate_checksum(self, filepath: str) -> str:
         """Calculates SHA256 checksum of an artifact file."""
@@ -52,10 +54,18 @@ class ModelRegistry:
         xgb_joblib_path = os.path.join(self.artifacts_dir, "xgboost_fault.joblib")
         calibrated_path = os.path.join(self.artifacts_dir, "calibrated_classifier.joblib")
 
+        self.missing_artifacts = []
+        self.load_error = None
+
         has_iforest = os.path.exists(iforest_path)
         has_classifier = os.path.exists(xgb_json_path) or os.path.exists(xgb_joblib_path)
 
-        if not has_iforest or not has_classifier:
+        if not has_iforest:
+            self.missing_artifacts.append("isolation_forest.joblib")
+        if not has_classifier:
+            self.missing_artifacts.append("xgboost_fault.json or xgboost_fault.joblib")
+
+        if self.missing_artifacts:
             self.is_loaded = False
             return False
 
@@ -70,7 +80,8 @@ class ModelRegistry:
 
             self.is_loaded = True
             return True
-        except Exception:
+        except Exception as exc:
+            self.load_error = str(exc)
             self.is_loaded = False
             return False
 
@@ -83,6 +94,8 @@ class ModelRegistry:
         return {
             "is_loaded": self.is_loaded,
             "artifacts_dir": self.artifacts_dir,
+            "missing_artifacts": self.missing_artifacts,
+            "load_error": self.load_error,
             "isolation_forest_sha256": self.calculate_checksum(iforest_path),
             "xgboost_classifier_sha256": self.calculate_checksum(xgb_path),
             "metrics_json_sha256": self.calculate_checksum(metrics_path)

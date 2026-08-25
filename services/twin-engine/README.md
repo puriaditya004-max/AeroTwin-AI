@@ -20,7 +20,7 @@ mission advisories.
 | 05 | Load, margins, and required derived features | Complete |
 | 06 | GOOD / DEGRADED / STALE state quality policy | Complete |
 | 07 | `twin.state.v1` publisher and latest-state API | Complete |
-| 08 | In-process checkpoint for latest state and stream progress | Complete |
+| 08 | In-process checkpoint plus Redis durable latest-state checkpoint | Complete |
 | 09 | Docker Compose service + worker integration | Complete |
 | 10 | Tests and explanation notes | Complete |
 

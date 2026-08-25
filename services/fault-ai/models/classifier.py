@@ -10,6 +10,10 @@ from typing import Dict, List, Tuple, Optional
 import joblib
 import numpy as np
 from sklearn.calibration import CalibratedClassifierCV
+try:
+    from sklearn.frozen import FrozenEstimator
+except ImportError:  # pragma: no cover - older scikit-learn
+    FrozenEstimator = None
 from sklearn.ensemble import HistGradientBoostingClassifier
 
 try:
@@ -60,12 +64,21 @@ class FaultClassifier:
         self.base_model.fit(X_train, y_train)
 
         if X_val is not None and y_val is not None:
-            self.calibrated_model = CalibratedClassifierCV(
-                estimator=self.base_model,
-                method="sigmoid",
-                cv="prefit"
-            )
-            self.calibrated_model.fit(X_val, y_val)
+            try:
+                if FrozenEstimator is not None:
+                    self.calibrated_model = CalibratedClassifierCV(
+                        estimator=FrozenEstimator(self.base_model),
+                        method="sigmoid",
+                    )
+                else:
+                    self.calibrated_model = CalibratedClassifierCV(
+                        estimator=self.base_model,
+                        method="sigmoid",
+                        cv="prefit"
+                    )
+                self.calibrated_model.fit(X_val, y_val)
+            except Exception:
+                self.calibrated_model = None
         self.is_fitted = True
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:

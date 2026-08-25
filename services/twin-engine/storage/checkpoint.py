@@ -1,3 +1,5 @@
+import json
+
 from app.contracts import TwinState
 
 
@@ -21,3 +23,36 @@ class InMemoryCheckpointStore:
 
     def all_states(self) -> list[TwinState]:
         return list(self._states.values())
+
+
+class RedisCheckpointStore:
+    """Durable latest-state checkpoint used by the Redis worker."""
+
+    def __init__(self, redis_client, key_prefix: str = "m2:twin"):
+        self.redis_client = redis_client
+        self.key_prefix = key_prefix
+
+    def _state_key(self, engine_id: str, mission_id: str) -> str:
+        return f"{self.key_prefix}:state:{engine_id}:{mission_id}"
+
+    def _index_key(self) -> str:
+        return f"{self.key_prefix}:state-index"
+
+    def _stream_key(self) -> str:
+        return f"{self.key_prefix}:last-stream-id"
+
+    async def save(self, state: TwinState, stream_id: str | None = None) -> None:
+        payload = state.model_dump_json()
+        state_key = self._state_key(state.engineId, state.missionId)
+        await self.redis_client.set(state_key, payload)
+        await self.redis_client.sadd(self._index_key(), state_key)
+        if stream_id is not None:
+            await self.redis_client.set(self._stream_key(), stream_id)
+
+    async def latest(self, engine_id: str, mission_id: str) -> TwinState | None:
+        raw = await self.redis_client.get(self._state_key(engine_id, mission_id))
+        if raw is None:
+            return None
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8")
+        return TwinState.model_validate(json.loads(raw))

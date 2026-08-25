@@ -110,6 +110,29 @@ def generate_single_mission_raw(
     return rows, manifest
 
 
+def generate_single_mission(
+    mission_id: str,
+    scenario_family: str,
+    num_samples: int = 120,
+    seed: int = 42
+):
+    """
+    Compatibility wrapper used by scenario tests and notebooks.
+
+    Returns a pandas DataFrame when pandas is available, otherwise returns the
+    raw row dictionaries. The manifest shape stays identical.
+    """
+    rows, manifest = generate_single_mission_raw(
+        mission_id=mission_id,
+        scenario_family=scenario_family,
+        num_samples=num_samples,
+        seed=seed,
+    )
+    if HAS_PANDAS:
+        return pd.DataFrame(rows), manifest
+    return rows, manifest
+
+
 def build_dataset(
     output_dir: str = "artifacts/v1",
     num_missions_per_family: int = 10,
@@ -131,18 +154,24 @@ def build_dataset(
             manifests.append(manifest)
             mission_idx += 1
 
-    # Split missions into Train (70%), Val (15%), Test (15%)
-    all_missions = [m["missionId"] for m in manifests]
+    # Split missions into Train (70%), Val (15%), Test (15%) by missionId
+    # inside each scenario family. This prevents mission leakage while keeping
+    # all five classes represented in train/val/test for stable metrics.
     random.seed(seed)
-    random.shuffle(all_missions)
+    train_missions = set()
+    val_missions = set()
+    test_missions = set()
 
-    n = len(all_missions)
-    n_train = int(n * 0.70)
-    n_val = int(n * 0.15)
+    for family in FAULT_CLASSES:
+        family_missions = [m["missionId"] for m in manifests if m["scenario_family"] == family]
+        random.shuffle(family_missions)
+        n = len(family_missions)
+        n_train = max(1, int(n * 0.70))
+        n_val = max(1, int(n * 0.15))
 
-    train_missions = set(all_missions[:n_train])
-    val_missions = set(all_missions[n_train:n_train + n_val])
-    test_missions = set(all_missions[n_train + n_val:])
+        train_missions.update(family_missions[:n_train])
+        val_missions.update(family_missions[n_train:n_train + n_val])
+        test_missions.update(family_missions[n_train + n_val:])
 
     train_rows = [r for r in all_rows if r["missionId"] in train_missions]
     val_rows = [r for r in all_rows if r["missionId"] in val_missions]

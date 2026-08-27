@@ -32,6 +32,19 @@ export const QualityFlagSchema = z.enum([
   "OUT_OF_ORDER",
 ]);
 
+export const SensorQualityCodeSchema = z.enum([
+  "OK",
+  "MISSING",
+  "STALE",
+  "OUT_OF_RANGE",
+  "DEGRADED",
+]);
+
+export const SensorQualitySchema = z.object({
+  status: SensorQualityCodeSchema,
+  reason: z.string().optional(),
+});
+
 export const SensorsSchema = z.object({
   rpm: z.number().min(0).max(4000),
   oilPressureKpa: z.number().min(0).max(1000),
@@ -43,18 +56,28 @@ export const SensorsSchema = z.object({
   altitudeM: z.number().min(0).max(12000),
   ambientTempC: z.number().min(-60).max(60),
   ambientPressureKpa: z.number().min(10).max(110),
-});
+  chtCylindersC: z.array(z.number()).optional(),
+  egtCylindersC: z.array(z.number()).optional(),
+  alternatorVoltageV: z.number().min(0).max(40).optional(),
+  alternatorCurrentA: z.number().min(-50).max(150).optional(),
+  batteryVoltageV: z.number().min(0).max(40).optional(),
+  injectionTimingDeg: z.number().min(-60).max(60).optional(),
+  sensorQuality: z.record(z.string(), SensorQualitySchema).optional(),
+}).passthrough();
 
 export const TelemetryFrameSchema = z.object({
+  schemaVersion: z.string().optional(),
   engineId: z.string(),
   missionId: z.string(),
+  frameId: z.string().optional(),
   correlationId: z.string(),
   timestamp: z.string().datetime(),
+  ingestTimestamp: z.string().datetime().optional(),
   producerVersion: z.string(),
   sensors: SensorsSchema,
   qualityFlag: QualityFlagSchema,
   scenarioId: z.string().optional(),
-});
+}).passthrough();
 
 export type TelemetryFrame = z.infer<typeof TelemetryFrameSchema>;
 
@@ -75,9 +98,31 @@ export const DerivedFeaturesSchema = z.object({
   rollingStdVibration: z.number(),
   rateOfChangeOilTempCPerMin: z.number(),
   sampleWindowSeconds: z.number().min(0),
-});
+  featureVersion: z.string().optional(),
+  chtMaxC: z.number().optional(),
+  chtMeanC: z.number().optional(),
+  chtSpreadC: z.number().optional(),
+  chtSlopeCPerMin: z.number().optional(),
+  egtMaxC: z.number().optional(),
+  egtMeanC: z.number().optional(),
+  egtSpreadC: z.number().optional(),
+  egtSlopeCPerMin: z.number().optional(),
+  oilPressureDeviationKpa: z.number().optional(),
+  fuelFlowDeviationLph: z.number().optional(),
+  injectionTimingDeviationDeg: z.number().optional(),
+  alternatorVoltageMarginV: z.number().optional(),
+  batteryVoltageMarginV: z.number().optional(),
+  vibrationRollingMeanMmS: z.number().optional(),
+  vibrationSlopeMmSPerMin: z.number().optional(),
+  vibrationPeakMmS: z.number().optional(),
+  missingSensorRatio: z.number().min(0).max(1).optional(),
+  invalidSensorRatio: z.number().min(0).max(1).optional(),
+  stateConfidence: z.number().min(0).max(1).optional(),
+  reasonCodes: z.array(z.string()).optional(),
+}).passthrough();
 
 export const TwinStateSchema = z.object({
+  schemaVersion: z.string().optional(),
   engineId: z.string(),
   missionId: z.string(),
   correlationId: z.string(),
@@ -88,7 +133,7 @@ export const TwinStateSchema = z.object({
   derivedFeatures: DerivedFeaturesSchema,
   stateQuality: StateQualitySchema,
   syncLagMs: z.number().min(0).optional(),
-});
+}).passthrough();
 
 export type TwinState = z.infer<typeof TwinStateSchema>;
 

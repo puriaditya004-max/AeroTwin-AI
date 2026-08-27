@@ -50,7 +50,7 @@ export function deriveAdvisoryDecision(input: AdvisoryPolicyInput): AdvisoryDeci
   if (health.trend === "DEGRADING") reasons.push("health_degrading");
   if (rul && (rul.cycles <= RUL_MEDIUM_CYCLES || rul.trend === "DEGRADING")) reasons.push("rul_degrading");
 
-  if (reasons.some((r) => ["health_medium_risk", "health_degrading", "rul_degrading"].includes(r))) {
+  if (reasons.some((r) => ["health_medium_risk", "health_degrading", "rul_degrading", "health_data_quality_issue"].includes(r))) {
     return { risk: "MEDIUM", action: "REDUCE_LOAD", inspectionRequired: false, reasons };
   }
 

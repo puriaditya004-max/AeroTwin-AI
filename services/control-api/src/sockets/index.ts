@@ -2,10 +2,9 @@ import type { Server as HttpServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import jwt from "jsonwebtoken";
 import type { HealthSnapshot, FaultPrediction, RulEstimate, MissionAdvisory } from "../types/contracts";
-import type { AuthUser } from "../middleware/auth";
+import { type AuthUser, getJwtSecret } from "../middleware/auth";
 
 let io: SocketIOServer | undefined;
-const JWT_SECRET = process.env.JWT_SECRET ?? "";
 
 export function initSocketServer(httpServer: HttpServer): SocketIOServer {
   io = new SocketIOServer(httpServer, {
@@ -23,7 +22,7 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
       return;
     }
     try {
-      socket.data.user = jwt.verify(token, JWT_SECRET) as AuthUser;
+      socket.data.user = jwt.verify(token, getJwtSecret()) as AuthUser;
       next();
     } catch {
       next(new Error("UNAUTHENTICATED"));
@@ -39,12 +38,15 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
         socket.emit("mission:error", { error: "INVALID_MISSION_ID" });
         return;
       }
-      socket.join(missionRoom(missionId));
+      const room = missionRoom(missionId.trim());
+      socket.join(room);
+      socket.emit("mission:subscribed", { missionId: missionId.trim() });
     });
 
     socket.on("mission:unsubscribe", (missionId: string) => {
       if (typeof missionId !== "string" || missionId.trim().length === 0 || missionId.length > 128) return;
-      socket.leave(missionRoom(missionId));
+      socket.leave(missionRoom(missionId.trim()));
+      socket.emit("mission:unsubscribed", { missionId: missionId.trim() });
     });
 
     socket.on("disconnect", () => {

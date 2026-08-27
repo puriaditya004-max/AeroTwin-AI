@@ -1,6 +1,6 @@
 interface HealthGaugeProps {
-  score: number; // 0-100
-  trend: "IMPROVING" | "STABLE" | "DEGRADING";
+  score?: number; // 0-100 (undefined = missing/data unavailable)
+  trend?: "IMPROVING" | "STABLE" | "DEGRADING";
 }
 
 const SIZE = 220;
@@ -39,17 +39,28 @@ function zoneColor(score: number) {
 }
 
 export function HealthGauge({ score, trend }: HealthGaugeProps) {
-  const needleAngle = scoreToAngle(score);
+  const isAvailable = score !== undefined && !isNaN(score);
+  const needleAngle = isAvailable ? scoreToAngle(score) : START_ANGLE + SWEEP / 2;
   const needle = polarToCartesian(needleAngle);
-  const color = zoneColor(score);
+  const color = isAvailable ? zoneColor(score) : "#7C8B9B";
 
   // Three color zones drawn as separate arc segments (red / amber / green),
   // matching real engine-instrument caution banding.
   const zoneBoundaries = [0, 40, 70, 100].map(scoreToAngle);
 
+  const label = isAvailable
+    ? `Health Index · ${trend === "DEGRADING" ? "▼ degrading" : trend === "IMPROVING" ? "▲ improving" : "● stable"}`
+    : "Health Index · DATA UNAVAILABLE";
+
   return (
     <div className="flex flex-col items-center">
-      <svg width={SIZE} height={SIZE * 0.72} viewBox={`0 0 ${SIZE} ${SIZE * 0.72}`} role="img" aria-label={`Engine health index ${score.toFixed(1)} out of 100, trend ${trend.toLowerCase()}`}>
+      <svg
+        width={SIZE}
+        height={SIZE * 0.72}
+        viewBox={`0 0 ${SIZE} ${SIZE * 0.72}`}
+        role="img"
+        aria-label={isAvailable ? `Engine health index ${score.toFixed(1)} out of 100, trend ${trend?.toLowerCase()}` : "Engine health data unavailable"}
+      >
         {/* Track */}
         <path
           d={arcPath(START_ANGLE, START_ANGLE + SWEEP)}
@@ -63,34 +74,39 @@ export function HealthGauge({ score, trend }: HealthGaugeProps) {
         <path d={arcPath(zoneBoundaries[1], zoneBoundaries[2])} fill="none" stroke="#FFB020" strokeOpacity={0.55} strokeWidth={STROKE} />
         <path d={arcPath(zoneBoundaries[2], zoneBoundaries[3])} fill="none" stroke="#3DDC84" strokeOpacity={0.55} strokeWidth={STROKE} strokeLinecap="round" />
         {/* Active value arc */}
-        <path
-          d={arcPath(START_ANGLE, needleAngle)}
-          fill="none"
-          stroke={color}
-          strokeWidth={STROKE}
-          strokeLinecap="round"
-          style={{ transition: "d 0.6s ease" }}
-        />
+        {isAvailable && (
+          <path
+            d={arcPath(START_ANGLE, needleAngle)}
+            fill="none"
+            stroke={color}
+            strokeWidth={STROKE}
+            strokeLinecap="round"
+            style={{ transition: "d 0.6s ease" }}
+          />
+        )}
         {/* Needle */}
-        <line
-          x1={CENTER}
-          y1={CENTER}
-          x2={needle.x}
-          y2={needle.y}
-          stroke="#E8EDF2"
-          strokeWidth={2}
-          style={{ transition: "x2 0.6s ease, y2 0.6s ease" }}
-        />
-        <circle cx={CENTER} cy={CENTER} r={4} fill="#E8EDF2" />
+        {isAvailable && (
+          <>
+            <line
+              x1={CENTER}
+              y1={CENTER}
+              x2={needle.x}
+              y2={needle.y}
+              stroke="#E8EDF2"
+              strokeWidth={2}
+              style={{ transition: "x2 0.6s ease, y2 0.6s ease" }}
+            />
+            <circle cx={CENTER} cy={CENTER} r={4} fill="#E8EDF2" />
+          </>
+        )}
       </svg>
       <div className="-mt-2 text-center">
         <div className="font-mono text-4xl font-medium tabular-nums" style={{ color }}>
-          {score.toFixed(1)}
+          {isAvailable ? score.toFixed(1) : "—"}
         </div>
-        <div className="eyebrow mt-1">
-          Health Index · {trend === "DEGRADING" ? "▼ degrading" : trend === "IMPROVING" ? "▲ improving" : "● stable"}
-        </div>
+        <div className="eyebrow mt-1">{label}</div>
       </div>
     </div>
   );
 }
+

@@ -25,3 +25,11 @@ data/synthetic/*.parquet
 *.egg-info/
 .pytest_cache/
 services/fault-ai/*.egg-info/
+# MLflow local tracking
+mlflow.db
+mlruns/
+
+# M5 generated training artifacts
+services/rul-validation/training/mlflow.db
+services/rul-validation/training/data/processed/
+services/rul-validation/training/models/*.joblib

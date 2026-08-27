@@ -6,3 +6,6 @@ mlflow
 joblib
 pytest
 pyyaml
+fastapi
+uvicorn
+

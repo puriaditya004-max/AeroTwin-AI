@@ -1,0 +1,26 @@
+model:
+  name: rul_xgboost
+  version: "1.0.0"
+  framework: xgboost
+  task: remaining_useful_life
+  target: rul
+
+features:
+  - temperature
+  - vibration
+  - pressure
+  - rpm
+  - load
+  - health_index
+
+artifacts:
+  model: training/models/rul_xgboost.joblib
+  scaler: training/data/processed/scaler.joblib
+
+validation:
+  max_rul: 300
+  min_rul: 0
+
+service:
+  name: AeroTwin-AI M5 RUL Validation
+  api_version: "1.0.0"

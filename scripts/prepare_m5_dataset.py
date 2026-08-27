@@ -16,7 +16,40 @@ print("Dataset shape:", df.shape)
 
 
 # --------------------------------
-# 2. Select features
+# 2. Define unified M5 schema
+# --------------------------------
+
+required_columns = [
+    "engine_id",
+    "mission_id",
+    "cycle",
+    "health_score",
+    "fault_confidence",
+    "anomaly_score",
+    "temperature",
+    "oil_pressure",
+    "vibration",
+    "rul_target"
+]
+
+
+# --------------------------------
+# 3. Validate dataset schema
+# --------------------------------
+
+missing_columns = [
+    column for column in required_columns
+    if column not in df.columns
+]
+
+if missing_columns:
+    raise ValueError(
+        f"Missing required M5 columns: {missing_columns}"
+    )
+
+
+# --------------------------------
+# 4. Select M5 model features
 # --------------------------------
 
 features = [
@@ -32,12 +65,44 @@ features = [
 target = "rul_target"
 
 
+# --------------------------------
+# 5. Validate numeric columns
+# --------------------------------
+
+numeric_columns = features + [target]
+
+for column in numeric_columns:
+    df[column] = pd.to_numeric(
+        df[column],
+        errors="raise"
+    )
+
+
+# --------------------------------
+# 6. Remove invalid rows
+# --------------------------------
+
+df = df.dropna(
+    subset=required_columns
+).reset_index(drop=True)
+
+
+if len(df) < 5:
+    raise ValueError(
+        "Not enough valid rows for M5 dataset preparation."
+    )
+
+
+# --------------------------------
+# 7. Create X and y
+# --------------------------------
+
 X = df[features]
 y = df[target]
 
 
 # --------------------------------
-# 3. Train-Test Split
+# 8. Train-Test Split
 # --------------------------------
 
 X_train, X_test, y_train, y_test = train_test_split(
@@ -49,7 +114,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 
 # --------------------------------
-# 4. Create processed directory
+# 9. Create processed directory
 # --------------------------------
 
 output_dir = "data/processed"
@@ -58,11 +123,12 @@ os.makedirs(output_dir, exist_ok=True)
 
 
 # --------------------------------
-# 5. Save training data
+# 10. Save training data
 # --------------------------------
 
 train_data = X_train.copy()
-train_data["rul_target"] = y_train
+
+train_data["rul_target"] = y_train.values
 
 train_data.to_csv(
     f"{output_dir}/m5_train.csv",
@@ -71,11 +137,12 @@ train_data.to_csv(
 
 
 # --------------------------------
-# 6. Save testing data
+# 11. Save testing data
 # --------------------------------
 
 test_data = X_test.copy()
-test_data["rul_target"] = y_test
+
+test_data["rul_target"] = y_test.values
 
 test_data.to_csv(
     f"{output_dir}/m5_test.csv",
@@ -84,18 +151,26 @@ test_data.to_csv(
 
 
 # --------------------------------
-# 7. Print information
+# 12. Validation output
 # --------------------------------
 
 print("\nM5 dataset preparation completed!")
+print("----------------------------------------")
 
-print("Features:")
+print("Unified schema validation: PASSED")
+
+print("\nRequired columns:")
+print(required_columns)
+
+print("\nModel features:")
 print(features)
 
 print("\nTarget:")
 print(target)
 
-print("\nTraining samples:", len(X_train))
+print("\nValid dataset rows:", len(df))
+
+print("Training samples:", len(X_train))
 print("Testing samples :", len(X_test))
 
 print("\nSaved files:")

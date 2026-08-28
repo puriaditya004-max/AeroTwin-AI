@@ -1,4 +1,3 @@
-
 FROM python:3.12-slim
 
 # =========================================================
@@ -14,16 +13,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies
-COPY requirements.txt .
+COPY services/rul-validation/requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # M5 application
-COPY app/ app/
+COPY services/rul-validation/app/ app/
 
 # M5 training artifacts
-COPY training/ training/
+COPY services/rul-validation/training/ training/
+
+# Shared AeroTwin contracts
+COPY packages/schemas/python/ /app/packages/schemas/python/
 
 # M5 API port
 EXPOSE 8005

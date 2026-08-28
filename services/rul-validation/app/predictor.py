@@ -4,6 +4,7 @@ import joblib
 import mlflow
 import mlflow.pyfunc
 import numpy as np
+import pandas as pd
 
 from .config import (
     FEATURE_COLUMNS,
@@ -139,28 +140,28 @@ class RULPredictor:
     # =====================================================
 
     def _prepare_features(
-        self,
-        temperature: float,
-        vibration: float,
-        pressure: float,
-        rpm: float,
-        load: float,
-        health_index: float,
-    ):
+    self,
+    temperature: float,
+    vibration: float,
+    pressure: float,
+    rpm: float,
+    load: float,
+    health_index: float,
+):
 
-        features = np.array(
-            [[
-                temperature,
-                vibration,
-                pressure,
-                rpm,
-                load,
-                health_index,
-            ]],
-            dtype=float,
-        )
+     features = pd.DataFrame(
+        [[
+            temperature,
+            vibration,
+            pressure,
+            rpm,
+            load,
+            health_index,
+        ]],
+        columns=FEATURE_COLUMNS,
+    )
 
-        return self.scaler.transform(features)
+     return self.scaler.transform(features)
 
     # =====================================================
     # Raw RUL prediction

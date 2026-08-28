@@ -29,5 +29,5 @@ def test_local_fallback_is_available():
 
     assert predictor.model_source in [
         "local:rul_xgboost.joblib",
-        "mlflow:AeroTwin-M5-RUL-XGBoost:2",
+        "mlflow:AeroTwin-M5-RUL-XGBoost:4",
     ]

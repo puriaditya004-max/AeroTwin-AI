@@ -1,6 +1,5 @@
-
 from fastapi import FastAPI, HTTPException
-
+from .rul_contract import build_rul_estimate
 from .predictor import RULPredictor
 from .schemas import (
     M3M4HealthData,

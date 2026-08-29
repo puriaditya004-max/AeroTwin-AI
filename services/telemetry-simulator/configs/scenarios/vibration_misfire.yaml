@@ -1,0 +1,77 @@
+id: vibration_misfire
+name: Vibration / misfire
+description: Intermittent vibration spikes after a delay. Synthetic demonstrator pattern only.
+engineId: ENG-001
+durationSeconds: 120
+publishRateHz: 1.0
+seed: 21
+fault:
+  injectAfterSeconds: 20
+  sensors:
+    vibrationMmS:
+      mode: spike
+      base: 3.3
+      spike: 16.5
+      periodSeconds: 8
+      widthSeconds: 1
+quality:
+  dropoutRate: 0.0
+  dropoutFlagRate: 0.0
+  duplicateRate: 0.0
+  outOfOrderRate: 0.0
+  degradedRate: 0.0
+nominal:
+  rpm:
+    mean: 2380
+    jitter: 35
+  oilPressureKpa:
+    mean: 218
+    jitter: 5
+  oilTempC:
+    mean: 91
+    jitter: 1.2
+  coolantTempC:
+    mean: 87
+    jitter: 1.2
+  vibrationMmS:
+    mean: 3.3
+    jitter: 0.2
+  fuelFlowLph:
+    mean: 18.0
+    jitter: 0.7
+  throttlePct:
+    mean: 64
+    jitter: 1.5
+  altitudeM:
+    mean: 3000
+    jitter: 12
+  ambientTempC:
+    mean: 10
+    jitter: 0.3
+  ambientPressureKpa:
+    mean: 70
+    jitter: 0.5
+  chtCylindersC:
+    values:
+      - { mean: 182, jitter: 1.2 }
+      - { mean: 190, jitter: 1.5 }
+      - { mean: 185, jitter: 1.2 }
+      - { mean: 184, jitter: 1.2 }
+  egtCylindersC:
+    values:
+      - { mean: 690, jitter: 6 }
+      - { mean: 720, jitter: 8 }
+      - { mean: 698, jitter: 5 }
+      - { mean: 700, jitter: 5 }
+  alternatorVoltageV:
+    mean: 27.0
+    jitter: 0.25
+  alternatorCurrentA:
+    mean: 17.5
+    jitter: 0.5
+  batteryVoltageV:
+    mean: 25.0
+    jitter: 0.15
+  injectionTimingDeg:
+    mean: 17.5
+    jitter: 0.4

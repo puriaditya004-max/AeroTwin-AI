@@ -1,0 +1,71 @@
+id: normal
+name: Normal cruise
+description: Stable synthetic readings inside a nominal demonstrator envelope. Not real engine physics.
+engineId: ENG-001
+durationSeconds: 120
+publishRateHz: 1.0
+seed: 42
+fault:
+  injectAfterSeconds: 30
+  sensors: {}
+quality:
+  dropoutRate: 0.0
+  dropoutFlagRate: 0.0
+  duplicateRate: 0.0
+  outOfOrderRate: 0.0
+  degradedRate: 0.0
+nominal:
+  rpm:
+    mean: 2400
+    jitter: 25
+  oilPressureKpa:
+    mean: 220
+    jitter: 6
+  oilTempC:
+    mean: 92
+    jitter: 1.5
+  coolantTempC:
+    mean: 88
+    jitter: 1.5
+  vibrationMmS:
+    mean: 3.2
+    jitter: 0.25
+  fuelFlowLph:
+    mean: 18.5
+    jitter: 0.6
+  throttlePct:
+    mean: 65
+    jitter: 1.5
+  altitudeM:
+    mean: 3200
+    jitter: 15
+  ambientTempC:
+    mean: 12
+    jitter: 0.4
+  ambientPressureKpa:
+    mean: 68
+    jitter: 0.6
+  chtCylindersC:
+    values:
+      - { mean: 184, jitter: 1.0 }
+      - { mean: 187, jitter: 1.0 }
+      - { mean: 186, jitter: 1.0 }
+      - { mean: 185, jitter: 1.0 }
+  egtCylindersC:
+    values:
+      - { mean: 695, jitter: 4 }
+      - { mean: 702, jitter: 4 }
+      - { mean: 699, jitter: 4 }
+      - { mean: 701, jitter: 4 }
+  alternatorVoltageV:
+    mean: 27.4
+    jitter: 0.2
+  alternatorCurrentA:
+    mean: 18.2
+    jitter: 0.4
+  batteryVoltageV:
+    mean: 25.1
+    jitter: 0.15
+  injectionTimingDeg:
+    mean: 17.8
+    jitter: 0.2

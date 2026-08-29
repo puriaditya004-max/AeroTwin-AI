@@ -1,0 +1,81 @@
+id: oil_pressure_degradation
+name: Oil pressure degradation
+description: Golden demo. Slow oil-pressure decline after injectAfterSeconds. Synthetic data only.
+engineId: ENG-001
+durationSeconds: 120
+publishRateHz: 1.0
+seed: 7
+fault:
+  injectAfterSeconds: 30
+  sensors:
+    oilPressureKpa:
+      mode: linear
+      from: 220
+      to: 85
+      overSeconds: 80
+    oilTempC:
+      mode: linear
+      from: 92
+      to: 118
+      overSeconds: 80
+quality:
+  dropoutRate: 0.0
+  dropoutFlagRate: 0.0
+  duplicateRate: 0.0
+  outOfOrderRate: 0.0
+  degradedRate: 0.0
+nominal:
+  rpm:
+    mean: 2400
+    jitter: 18
+  oilPressureKpa:
+    mean: 220
+    jitter: 4
+  oilTempC:
+    mean: 92
+    jitter: 1.0
+  coolantTempC:
+    mean: 88
+    jitter: 1.0
+  vibrationMmS:
+    mean: 3.2
+    jitter: 0.2
+  fuelFlowLph:
+    mean: 18.5
+    jitter: 0.4
+  throttlePct:
+    mean: 65
+    jitter: 1.0
+  altitudeM:
+    mean: 3200
+    jitter: 10
+  ambientTempC:
+    mean: 12
+    jitter: 0.3
+  ambientPressureKpa:
+    mean: 68
+    jitter: 0.4
+  chtCylindersC:
+    values:
+      - { mean: 184, jitter: 0.8 }
+      - { mean: 187, jitter: 0.8 }
+      - { mean: 186, jitter: 0.8 }
+      - { mean: 185, jitter: 0.8 }
+  egtCylindersC:
+    values:
+      - { mean: 695, jitter: 3 }
+      - { mean: 702, jitter: 3 }
+      - { mean: 699, jitter: 3 }
+      - { mean: 701, jitter: 3 }
+  alternatorVoltageV:
+    mean: 27.4
+    jitter: 0.15
+  alternatorCurrentA:
+    mean: 18.2
+    jitter: 0.3
+  batteryVoltageV:
+    mean: 25.1
+    jitter: 0.1
+  injectionTimingDeg:
+    mean: 17.8
+    jitter: 0.15

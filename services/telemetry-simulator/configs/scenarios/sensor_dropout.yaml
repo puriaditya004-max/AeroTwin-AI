@@ -1,0 +1,72 @@
+id: sensor_dropout
+name: Sensor dropout
+description: Deliberate missing, duplicate, and out-of-order frames after inject delay. Synthetic messiness for consumer tests.
+engineId: ENG-001
+durationSeconds: 120
+publishRateHz: 1.0
+seed: 99
+fault:
+  injectAfterSeconds: 15
+  sensors: {}
+quality:
+  dropoutRate: 0.08
+  dropoutFlagRate: 0.08
+  duplicateRate: 0.08
+  outOfOrderRate: 0.08
+  outOfOrderShiftMs: 2000
+  degradedRate: 0.04
+nominal:
+  rpm:
+    mean: 2400
+    jitter: 20
+  oilPressureKpa:
+    mean: 220
+    jitter: 5
+  oilTempC:
+    mean: 92
+    jitter: 1.0
+  coolantTempC:
+    mean: 88
+    jitter: 1.0
+  vibrationMmS:
+    mean: 3.2
+    jitter: 0.2
+  fuelFlowLph:
+    mean: 18.5
+    jitter: 0.5
+  throttlePct:
+    mean: 65
+    jitter: 1.0
+  altitudeM:
+    mean: 3200
+    jitter: 10
+  ambientTempC:
+    mean: 12
+    jitter: 0.3
+  ambientPressureKpa:
+    mean: 68
+    jitter: 0.4
+  chtCylindersC:
+    values:
+      - { mean: 184, jitter: 1.0 }
+      - { mean: 187, jitter: 1.0 }
+      - { mean: 186, jitter: 1.0 }
+      - { mean: 185, jitter: 1.0 }
+  egtCylindersC:
+    values:
+      - { mean: 695, jitter: 4 }
+      - { mean: 702, jitter: 4 }
+      - { mean: 699, jitter: 4 }
+      - { mean: 701, jitter: 4 }
+  alternatorVoltageV:
+    mean: 27.4
+    jitter: 0.2
+  alternatorCurrentA:
+    mean: 18.2
+    jitter: 0.3
+  batteryVoltageV:
+    mean: 25.1
+    jitter: 0.1
+  injectionTimingDeg:
+    mean: 17.8
+    jitter: 0.2

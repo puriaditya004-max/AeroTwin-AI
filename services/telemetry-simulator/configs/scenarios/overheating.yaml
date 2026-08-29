@@ -1,0 +1,81 @@
+id: overheating
+name: Overheating
+description: Gradual coolant/CHT rise after a configurable delay. Synthetic envelope only.
+engineId: ENG-001
+durationSeconds: 120
+publishRateHz: 1.0
+seed: 42
+fault:
+  injectAfterSeconds: 25
+  sensors:
+    coolantTempC:
+      mode: linear
+      from: 88
+      to: 118
+      overSeconds: 80
+    oilTempC:
+      mode: linear
+      from: 92
+      to: 128
+      overSeconds: 80
+quality:
+  dropoutRate: 0.0
+  dropoutFlagRate: 0.0
+  duplicateRate: 0.0
+  outOfOrderRate: 0.0
+  degradedRate: 0.0
+nominal:
+  rpm:
+    mean: 2450
+    jitter: 20
+  oilPressureKpa:
+    mean: 215
+    jitter: 5
+  oilTempC:
+    mean: 92
+    jitter: 1.2
+  coolantTempC:
+    mean: 88
+    jitter: 1.2
+  vibrationMmS:
+    mean: 3.4
+    jitter: 0.2
+  fuelFlowLph:
+    mean: 19.0
+    jitter: 0.5
+  throttlePct:
+    mean: 68
+    jitter: 1.0
+  altitudeM:
+    mean: 2800
+    jitter: 12
+  ambientTempC:
+    mean: 18
+    jitter: 0.3
+  ambientPressureKpa:
+    mean: 72
+    jitter: 0.5
+  chtCylindersC:
+    values:
+      - { mean: 186, jitter: 1.0 }
+      - { mean: 189, jitter: 1.0 }
+      - { mean: 188, jitter: 1.0 }
+      - { mean: 187, jitter: 1.0 }
+  egtCylindersC:
+    values:
+      - { mean: 710, jitter: 5 }
+      - { mean: 718, jitter: 5 }
+      - { mean: 714, jitter: 5 }
+      - { mean: 716, jitter: 5 }
+  alternatorVoltageV:
+    mean: 27.2
+    jitter: 0.2
+  alternatorCurrentA:
+    mean: 19.0
+    jitter: 0.4
+  batteryVoltageV:
+    mean: 24.9
+    jitter: 0.15
+  injectionTimingDeg:
+    mean: 18.0
+    jitter: 0.2

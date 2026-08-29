@@ -100,12 +100,42 @@ services:
   # Each should expose a healthcheck and connect to redis for streams
   # (M1/M2) or call control-api's /ingest/* endpoints directly (M3/M4/M5).
   # ---------------------------------------------------------------------
-  # telemetry-simulator:      # M1
-  #   build: ./services/telemetry-simulator
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #
+  telemetry-simulator:       # M1 API Service
+    build:
+      context: ./services/telemetry-simulator
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      PORT: 8001
+      REDIS_URL: redis://redis:6379/0
+      M1_OUTPUT_STREAM: telemetry.frame.v1
+      M1_ENABLE_PUBLISHER: "true"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  telemetry-simulator-worker:  # M1 Redis Publisher Worker
+    build:
+      context: ./services/telemetry-simulator
+    command: python -m app.worker
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      M1_OUTPUT_STREAM: telemetry.frame.v1
+      M1_ENABLE_PUBLISHER: "true"
+    depends_on:
+      redis:
+        condition: service_healthy
+      telemetry-simulator:
+        condition: service_healthy
+
   twin-engine:               # M2 API Service
     build:
       context: ./services/twin-engine

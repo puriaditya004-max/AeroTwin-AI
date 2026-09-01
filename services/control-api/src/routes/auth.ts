@@ -2,9 +2,10 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
 
+import { getJwtSecret } from "../middleware/auth";
+
 export const authRouter = Router();
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? "1d";
 
 /**
@@ -46,7 +47,7 @@ authRouter.post("/dev-login", async (req, res) => {
 
   const token = jwt.sign(
     { id: user.id, email: user.email, role: user.role },
-    JWT_SECRET,
+    getJwtSecret(),
     { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
   );
 

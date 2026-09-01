@@ -5,15 +5,15 @@ import { HealthSnapshotSchema, FaultPredictionSchema, RulEstimateSchema } from "
 import { emitHealthUpdated, emitFaultPredicted, emitRulUpdated, emitAdvisoryUpdated } from "../sockets";
 import { buildMissionAdvisory } from "../services/advisory";
 import { logAudit } from "../services/audit";
-import { buildIdempotencyKey, hashPayload, reserveIdempotencyKey, type PayloadKind } from "../services/ingest/idempotency";
+import { buildIdempotencyKey, hashPayload, type PayloadKind } from "../services/ingest/idempotency";
 import {
-  ensureMission,
   hydrateFaultFromRow,
   hydrateHealthFromRow,
   hydrateRulFromRow,
-  persistFaultPrediction,
-  persistHealthSnapshot,
-  persistRulEstimate,
+  persistFaultPredictionTx,
+  persistHealthSnapshotTx,
+  persistRulEstimateTx,
+  UnprocessableEntityError,
 } from "../services/ingest/persistence";
 import { logEvent, nowMs } from "../services/logging";
 
@@ -22,116 +22,175 @@ export const ingestRouter = Router();
 const ADVISORY_PRODUCER_VERSION = process.env.M6_ADVISORY_PRODUCER_VERSION ?? "control-api-0.2.0";
 
 /**
- * POST /ingest/health  — M3 pushes HealthSnapshot here.
- * Persists it, broadcasts to subscribed HMI clients, and recomputes the
- * mission advisory using the latest known fault/RUL data for this mission.
+ * POST /ingest/health — M3 pushes HealthSnapshot here.
+ * Persists it atomically with idempotency, broadcasts to subscribed HMI clients,
+ * and recomputes the mission advisory using the latest known fault/RUL data.
  */
-ingestRouter.post("/health", validateBody(HealthSnapshotSchema), async (req, res) => {
+ingestRouter.post("/health", validateBody(HealthSnapshotSchema), async (req, res, next) => {
   const startedAt = nowMs();
   const health = req.body as import("../types/contracts").HealthSnapshot;
-  await ensureMission(health.engineId, health.missionId);
-  const idempotency = await applyIdempotency(req.header("X-Idempotency-Key"), "HEALTH", health, health.snapshotTime);
-  if (idempotency.status === "duplicate") {
-    res.status(202).json({ status: "accepted", duplicate: true, idempotencyKey: idempotency.key });
-    return;
+
+  try {
+    const key = buildIdempotencyKey({
+      headerValue: req.header("X-Idempotency-Key"),
+      kind: "HEALTH",
+      missionId: health.missionId,
+      correlationId: health.correlationId,
+      eventTime: health.snapshotTime,
+    });
+    const payloadHash = hashPayload(health);
+
+    const idempotency = await persistHealthSnapshotTx(health, { key, payloadHash });
+    if (idempotency.status === "duplicate") {
+      res.status(202).json({ status: "accepted", duplicate: true, idempotencyKey: idempotency.key });
+      return;
+    }
+    if (idempotency.status === "conflict") {
+      res.status(409).json({ error: "IDEMPOTENCY_CONFLICT", idempotencyKey: idempotency.key });
+      return;
+    }
+
+    emitHealthUpdated(health.missionId, health);
+
+    await recomputeAndBroadcastAdvisory(health.missionId, health.engineId, health.correlationId, health);
+
+    logIngest("HEALTH", health.missionId, health.engineId, health.correlationId, startedAt, "accepted");
+
+    res.status(202).json({ status: "accepted" });
+  } catch (err) {
+    if (err instanceof UnprocessableEntityError) {
+      res.status(422).json({ error: "UNPROCESSABLE_ENTITY", message: err.message });
+      return;
+    }
+    next(err);
   }
-  if (idempotency.status === "conflict") {
-    res.status(409).json({ error: "IDEMPOTENCY_CONFLICT", idempotencyKey: idempotency.key });
-    return;
-  }
-
-  await persistHealthSnapshot(health);
-
-  emitHealthUpdated(health.missionId, health);
-
-  await recomputeAndBroadcastAdvisory(health.missionId, health.engineId, health.correlationId, health);
-
-  logIngest("HEALTH", health.missionId, health.engineId, health.correlationId, startedAt, "accepted");
-
-  res.status(202).json({ status: "accepted" });
 });
 
 /**
  * POST /ingest/fault — M4 pushes FaultPrediction here.
  */
-ingestRouter.post("/fault", validateBody(FaultPredictionSchema), async (req, res) => {
+ingestRouter.post("/fault", validateBody(FaultPredictionSchema), async (req, res, next) => {
   const startedAt = nowMs();
   const fault = req.body as import("../types/contracts").FaultPrediction;
-  await ensureMission(fault.engineId, fault.missionId);
-  const idempotency = await applyIdempotency(req.header("X-Idempotency-Key"), "FAULT", fault, fault.predictionTime);
-  if (idempotency.status === "duplicate") {
-    res.status(202).json({ status: "accepted", duplicate: true, idempotencyKey: idempotency.key });
-    return;
-  }
-  if (idempotency.status === "conflict") {
-    res.status(409).json({ error: "IDEMPOTENCY_CONFLICT", idempotencyKey: idempotency.key });
-    return;
-  }
 
-  await persistFaultPrediction(fault);
+  try {
+    const key = buildIdempotencyKey({
+      headerValue: req.header("X-Idempotency-Key"),
+      kind: "FAULT",
+      missionId: fault.missionId,
+      correlationId: fault.correlationId,
+      eventTime: fault.predictionTime,
+    });
+    const payloadHash = hashPayload(fault);
 
-  emitFaultPredicted(fault.missionId, fault);
+    const idempotency = await persistFaultPredictionTx(fault, { key, payloadHash });
+    if (idempotency.status === "duplicate") {
+      res.status(202).json({ status: "accepted", duplicate: true, idempotencyKey: idempotency.key });
+      return;
+    }
+    if (idempotency.status === "conflict") {
+      res.status(409).json({ error: "IDEMPOTENCY_CONFLICT", idempotencyKey: idempotency.key });
+      return;
+    }
 
-  const latestHealth = await prisma.healthSnapshot.findFirst({
-    where: { missionId: fault.missionId },
-    orderBy: { snapshotTime: "desc" },
-  });
+    emitFaultPredicted(fault.missionId, fault);
 
-  if (latestHealth) {
-    await recomputeAndBroadcastAdvisory(
+    const latestHealth = await prisma.healthSnapshot.findFirst({
+      where: { missionId: fault.missionId },
+      orderBy: { snapshotTime: "desc" },
+    });
+
+    if (latestHealth) {
+      await recomputeAndBroadcastAdvisory(
+        fault.missionId,
+        fault.engineId,
+        fault.correlationId,
+        hydrateHealthFromRow(latestHealth),
+        fault
+      );
+    }
+
+    logIngest(
+      "FAULT",
       fault.missionId,
       fault.engineId,
       fault.correlationId,
-      hydrateHealthFromRow(latestHealth),
-      fault
+      startedAt,
+      latestHealth ? "accepted" : "waiting_for_health"
     );
+
+    res.status(202).json({ status: "accepted", advisory: latestHealth ? "updated" : "waiting_for_health" });
+  } catch (err) {
+    if (err instanceof UnprocessableEntityError) {
+      res.status(422).json({ error: "UNPROCESSABLE_ENTITY", message: err.message });
+      return;
+    }
+    next(err);
   }
-
-  logIngest("FAULT", fault.missionId, fault.engineId, fault.correlationId, startedAt, latestHealth ? "accepted" : "waiting_for_health");
-
-  res.status(202).json({ status: "accepted", advisory: latestHealth ? "updated" : "waiting_for_health" });
 });
 
 /**
  * POST /ingest/rul — M5 pushes RulEstimate here.
  */
-ingestRouter.post("/rul", validateBody(RulEstimateSchema), async (req, res) => {
+ingestRouter.post("/rul", validateBody(RulEstimateSchema), async (req, res, next) => {
   const startedAt = nowMs();
   const rul = req.body as import("../types/contracts").RulEstimate;
-  await ensureMission(rul.engineId, rul.missionId);
-  const idempotency = await applyIdempotency(req.header("X-Idempotency-Key"), "RUL", rul, rul.estimateTime);
-  if (idempotency.status === "duplicate") {
-    res.status(202).json({ status: "accepted", duplicate: true, idempotencyKey: idempotency.key });
-    return;
-  }
-  if (idempotency.status === "conflict") {
-    res.status(409).json({ error: "IDEMPOTENCY_CONFLICT", idempotencyKey: idempotency.key });
-    return;
-  }
 
-  await persistRulEstimate(rul);
+  try {
+    const key = buildIdempotencyKey({
+      headerValue: req.header("X-Idempotency-Key"),
+      kind: "RUL",
+      missionId: rul.missionId,
+      correlationId: rul.correlationId,
+      eventTime: rul.estimateTime,
+    });
+    const payloadHash = hashPayload(rul);
 
-  emitRulUpdated(rul.missionId, rul);
+    const idempotency = await persistRulEstimateTx(rul, { key, payloadHash });
+    if (idempotency.status === "duplicate") {
+      res.status(202).json({ status: "accepted", duplicate: true, idempotencyKey: idempotency.key });
+      return;
+    }
+    if (idempotency.status === "conflict") {
+      res.status(409).json({ error: "IDEMPOTENCY_CONFLICT", idempotencyKey: idempotency.key });
+      return;
+    }
 
-  const latestHealth = await prisma.healthSnapshot.findFirst({
-    where: { missionId: rul.missionId },
-    orderBy: { snapshotTime: "desc" },
-  });
+    emitRulUpdated(rul.missionId, rul);
 
-  if (latestHealth) {
-    await recomputeAndBroadcastAdvisory(
+    const latestHealth = await prisma.healthSnapshot.findFirst({
+      where: { missionId: rul.missionId },
+      orderBy: { snapshotTime: "desc" },
+    });
+
+    if (latestHealth) {
+      await recomputeAndBroadcastAdvisory(
+        rul.missionId,
+        rul.engineId,
+        rul.correlationId,
+        hydrateHealthFromRow(latestHealth),
+        undefined,
+        rul
+      );
+    }
+
+    logIngest(
+      "RUL",
       rul.missionId,
       rul.engineId,
       rul.correlationId,
-      hydrateHealthFromRow(latestHealth),
-      undefined,
-      rul
+      startedAt,
+      latestHealth ? "accepted" : "waiting_for_health"
     );
+
+    res.status(202).json({ status: "accepted", advisory: latestHealth ? "updated" : "waiting_for_health" });
+  } catch (err) {
+    if (err instanceof UnprocessableEntityError) {
+      res.status(422).json({ error: "UNPROCESSABLE_ENTITY", message: err.message });
+      return;
+    }
+    next(err);
   }
-
-  logIngest("RUL", rul.missionId, rul.engineId, rul.correlationId, startedAt, latestHealth ? "accepted" : "waiting_for_health");
-
-  res.status(202).json({ status: "accepted", advisory: latestHealth ? "updated" : "waiting_for_health" });
 });
 
 // ---------------------------------------------------------------------------
@@ -200,28 +259,6 @@ async function recomputeAndBroadcastAdvisory(
   }
 }
 
-async function applyIdempotency(
-  headerValue: string | undefined,
-  kind: PayloadKind,
-  payload: { missionId: string; correlationId: string },
-  eventTime: string
-) {
-  const key = buildIdempotencyKey({
-    headerValue,
-    kind,
-    missionId: payload.missionId,
-    correlationId: payload.correlationId,
-    eventTime,
-  });
-  return reserveIdempotencyKey({
-    key,
-    payloadHash: hashPayload(payload),
-    missionId: payload.missionId,
-    correlationId: payload.correlationId,
-    kind,
-  });
-}
-
 function logIngest(
   payloadKind: PayloadKind,
   missionId: string,
@@ -240,3 +277,4 @@ function logIngest(
     status,
   });
 }
+

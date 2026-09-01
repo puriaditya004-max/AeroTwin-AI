@@ -25,11 +25,14 @@ import {
 const MODE: "LIVE" | "DEMO" = (import.meta.env.VITE_HMI_MODE as "LIVE" | "DEMO") ?? "DEMO";
 const CONTROL_API_URL = import.meta.env.VITE_CONTROL_API_URL ?? "http://localhost:4000";
 
+const DEFAULT_MISSION_ID = import.meta.env.VITE_DEFAULT_MISSION_ID ?? MOCK_MISSION_ID;
+const DEFAULT_ENGINE_ID = import.meta.env.VITE_DEFAULT_ENGINE_ID ?? MOCK_ENGINE_ID;
+
 type View = "live" | "replay";
 
 export default function App() {
-  const missionId = MOCK_MISSION_ID;
-  const engineId = MOCK_ENGINE_ID;
+  const [missionId] = useState<string>(DEFAULT_MISSION_ID);
+  const [engineId] = useState<string>(DEFAULT_ENGINE_ID);
   const [view, setView] = useState<View>("live");
   const [authToken, setAuthToken] = useState<string | undefined>(() =>
     MODE === "LIVE" ? window.localStorage.getItem("aerotwin.devToken") ?? undefined : undefined
@@ -66,7 +69,6 @@ export default function App() {
   }, [authToken]);
 
   const live = useMissionSocket(missionId, authToken);
-  const [advisoryHistory] = useState(() => [mockAdvisory]);
   const history = useMemo(() => buildMockHistory(), []);
 
   const health = MODE === "LIVE" ? live.health : mockHealth;
@@ -79,10 +81,8 @@ export default function App() {
   const currentPoint = history[history.length - 1];
   const sensorQuality = MODE === "LIVE" ? undefined : "OK"; // wire to latest TelemetryFrame.qualityFlag once M1/M2 feed is live
 
-  // Replay always uses the golden-demo-journey mock timeline for now — once
-  // LIVE mode has an auth token wired in, swap this for a fetch to
-  // GET /missions/:id/advisories so replay shows the real recorded mission.
-  const replayEntries = mockAdvisoryTimeline;
+  const advisoryHistory = MODE === "LIVE" ? live.advisoriesHistory : [mockAdvisory];
+  const replayEntries = MODE === "LIVE" ? (live.advisoriesHistory.length > 0 ? live.advisoriesHistory : mockAdvisoryTimeline) : mockAdvisoryTimeline;
 
   return (
     <div className="min-h-screen">
@@ -99,6 +99,11 @@ export default function App() {
             {loadingLive && (
               <div className="panel p-4 text-sm text-text-muted">Connecting to Control API and loading latest mission state...</div>
             )}
+            {!connected && MODE === "LIVE" && !loadingLive && (
+              <div className="panel border-warn/40 bg-warn/10 p-4 text-sm text-warn flex items-center justify-between">
+                <span>Disconnected from Control API. Reconnecting...</span>
+              </div>
+            )}
             {authError && (
               <div className="panel border-warn/40 p-4 text-sm text-warn">
                 Live auth unavailable: {authError}. Demo mode still works for offline review.
@@ -108,7 +113,7 @@ export default function App() {
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[auto_1fr]">
               <div className="panel flex items-center justify-center p-6">
-                <HealthGauge score={health?.healthScore ?? 0} trend={health?.trend ?? "STABLE"} />
+                <HealthGauge score={health?.healthScore} trend={health?.trend} />
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FaultPanel fault={fault} />
@@ -124,7 +129,7 @@ export default function App() {
             <AuditLog entries={advisoryHistory} />
           </>
         ) : (
-          <MissionReplay entries={replayEntries} />
+          <MissionReplay entries={replayEntries} loading={loadingLive} />
         )}
       </main>
     </div>

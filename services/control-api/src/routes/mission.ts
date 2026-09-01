@@ -14,6 +14,32 @@ const StartMissionSchema = z.object({
 });
 
 /**
+ * GET /missions — list all missions.
+ */
+missionRouter.get("/", requireAuth, async (_req, res) => {
+  const missions = await prisma.mission.findMany({
+    include: { engine: true },
+    orderBy: { startedAt: "desc" },
+  });
+  res.json(missions);
+});
+
+/**
+ * GET /missions/:missionId — retrieve mission details.
+ */
+missionRouter.get("/:missionId", requireAuth, async (req, res) => {
+  const mission = await prisma.mission.findUnique({
+    where: { id: req.params.missionId },
+    include: { engine: true },
+  });
+  if (!mission) {
+    res.status(404).json({ error: "MISSION_NOT_FOUND" });
+    return;
+  }
+  res.json(mission);
+});
+
+/**
  * POST /missions — start a new mission run. Operator/Admin only.
  */
 missionRouter.post(
@@ -72,6 +98,17 @@ missionRouter.get("/:missionId/advisories/latest", requireAuth, async (req, res)
 });
 
 /**
+ * GET /missions/:missionId/audit — audit entries for a mission.
+ */
+missionRouter.get("/:missionId/audit", requireAuth, async (req, res) => {
+  const auditEntries = await prisma.auditEntry.findMany({
+    where: { missionId: req.params.missionId },
+    orderBy: { createdAt: "asc" },
+  });
+  res.json(auditEntries);
+});
+
+/**
  * GET /missions/:missionId/state — combined latest snapshot for HMI initial load.
  * Fixes the "page refresh shows nothing" gap: the HMI's Socket.IO connection
  * only delivers events that arrive AFTER it subscribes, so on mount (or a
@@ -106,6 +143,20 @@ missionRouter.post("/:missionId/end", requireAuth, requireRole("ADMIN", "OPERATO
   });
 
   await logAudit({ missionId: mission.id, userId: req.user?.id, action: "MISSION_ENDED" });
+
+  res.json(mission);
+});
+
+/**
+ * POST /missions/:missionId/abort — abort running mission.
+ */
+missionRouter.post("/:missionId/abort", requireAuth, requireRole("ADMIN", "OPERATOR"), async (req, res) => {
+  const mission = await prisma.mission.update({
+    where: { id: req.params.missionId },
+    data: { status: "ABORTED", endedAt: new Date() },
+  });
+
+  await logAudit({ missionId: mission.id, userId: req.user?.id, action: "MISSION_ABORTED" });
 
   res.json(mission);
 });

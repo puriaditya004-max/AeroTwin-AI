@@ -18,10 +18,15 @@ declare global {
   }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "";
-
-if (!JWT_SECRET && process.env.NODE_ENV === "production") {
-  throw new Error("JWT_SECRET is not set. Refusing to start in production without it.");
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("JWT_SECRET is not set. Refusing to start in production without it.");
+    }
+    return "aerotwin-dev-secret-key-change-in-prod";
+  }
+  return secret;
 }
 
 /**
@@ -36,7 +41,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   }
   const token = header.slice("Bearer ".length);
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as AuthUser;
+    const payload = jwt.verify(token, getJwtSecret()) as AuthUser;
     req.user = payload;
     next();
   } catch {

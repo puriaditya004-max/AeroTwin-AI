@@ -4,7 +4,9 @@ export function FaultPanel({ fault }: { fault?: FaultPrediction }) {
   return (
     <div className="panel p-5">
       <div className="eyebrow mb-3">Fault Prediction</div>
-      {!fault || fault.faultType === "NONE" ? (
+      {!fault ? (
+        <div className="font-display text-xl text-text-muted">No prediction available</div>
+      ) : fault.faultType === "NONE" ? (
         <div className="font-display text-xl text-safe">No fault detected</div>
       ) : (
         <>

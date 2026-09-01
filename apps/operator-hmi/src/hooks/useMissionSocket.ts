@@ -11,6 +11,7 @@ export interface LiveMissionData {
   fault?: FaultPrediction;
   rul?: RulEstimate;
   advisory?: MissionAdvisory;
+  advisoriesHistory: MissionAdvisory[];
 }
 
 interface MissionStateResponse {
@@ -26,8 +27,7 @@ interface MissionStateResponse {
  * nothing until the next live event arrives — Socket.IO only delivers events
  * that happen after the client subscribes, not history.
  *
- * Requires the caller to pass an auth token, since GET /missions/:id/state
- * is behind requireAuth on the Control API.
+ * Re-connects Socket.IO when authToken or missionId changes.
  */
 export function useMissionSocket(missionId: string, authToken?: string): LiveMissionData {
   const socketRef = useRef<Socket | null>(null);
@@ -37,24 +37,48 @@ export function useMissionSocket(missionId: string, authToken?: string): LiveMis
   const [fault, setFault] = useState<FaultPrediction | undefined>();
   const [rul, setRul] = useState<RulEstimate | undefined>();
   const [advisory, setAdvisory] = useState<MissionAdvisory | undefined>();
+  const [advisoriesHistory, setAdvisoriesHistory] = useState<MissionAdvisory[]>([]);
 
-  // Initial REST fetch — runs once per missionId, independent of socket connection.
+  // Reset state on missionId change
+  useEffect(() => {
+    setHealth(undefined);
+    setFault(undefined);
+    setRul(undefined);
+    setAdvisory(undefined);
+    setAdvisoriesHistory([]);
+  }, [missionId]);
+
+  // Initial REST fetch for latest state and historical advisories
   useEffect(() => {
     let cancelled = false;
 
     async function loadInitialState() {
       setLoadingInitialState(true);
       try {
-        const res = await fetch(`${CONTROL_API_URL}/missions/${missionId}/state`, {
-          headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
-        });
-        if (!res.ok) return;
-        const data = (await res.json()) as MissionStateResponse;
+        const headers = authToken ? { Authorization: `Bearer ${authToken}` } : undefined;
+        const [stateRes, advRes] = await Promise.allSettled([
+          fetch(`${CONTROL_API_URL}/missions/${missionId}/state`, { headers }),
+          fetch(`${CONTROL_API_URL}/missions/${missionId}/advisories`, { headers }),
+        ]);
+
         if (cancelled) return;
-        if (data.health) setHealth(data.health);
-        if (data.fault) setFault(data.fault);
-        if (data.rul) setRul(data.rul);
-        if (data.advisory) setAdvisory(data.advisory);
+
+        if (stateRes.status === "fulfilled" && stateRes.value.ok) {
+          const data = (await stateRes.value.json()) as MissionStateResponse;
+          if (!cancelled) {
+            if (data.health) setHealth(data.health);
+            if (data.fault) setFault(data.fault);
+            if (data.rul) setRul(data.rul);
+            if (data.advisory) setAdvisory(data.advisory);
+          }
+        }
+
+        if (advRes.status === "fulfilled" && advRes.value.ok) {
+          const advData = (await advRes.value.json()) as MissionAdvisory[];
+          if (!cancelled && Array.isArray(advData)) {
+            setAdvisoriesHistory(advData);
+          }
+        }
       } catch (err) {
         console.error("[useMissionSocket] failed to load initial state:", err);
       } finally {
@@ -68,7 +92,7 @@ export function useMissionSocket(missionId: string, authToken?: string): LiveMis
     };
   }, [missionId, authToken]);
 
-  // Live socket subscription — takes over after initial state is loaded.
+  // Live socket subscription
   useEffect(() => {
     const socket = io(CONTROL_API_URL, {
       transports: ["websocket"],
@@ -90,13 +114,17 @@ export function useMissionSocket(missionId: string, authToken?: string): LiveMis
     socket.on("health.updated", (payload: HealthSnapshot) => setHealth(payload));
     socket.on("fault.predicted", (payload: FaultPrediction) => setFault(payload));
     socket.on("rul.updated", (payload: RulEstimate) => setRul(payload));
-    socket.on("advisory.updated", (payload: MissionAdvisory) => setAdvisory(payload));
+    socket.on("advisory.updated", (payload: MissionAdvisory) => {
+      setAdvisory(payload);
+      setAdvisoriesHistory((prev) => [...prev, payload]);
+    });
 
     return () => {
       socket.emit("mission:unsubscribe", missionId);
       socket.disconnect();
     };
-  }, [missionId]);
+  }, [missionId, authToken]);
 
-  return { connected, loadingInitialState, health, fault, rul, advisory };
+  return { connected, loadingInitialState, health, fault, rul, advisory, advisoriesHistory };
 }
+

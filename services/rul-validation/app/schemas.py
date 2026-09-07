@@ -9,13 +9,25 @@ from pydantic import BaseModel, Field
 
 class M3M4HealthData(BaseModel):
     """
-    Contract for health/sensor data received from M3/M4.
+    Canonical health/sensor data received from M3/M4.
     """
 
     engine_id: str = Field(
         ...,
         min_length=1,
         description="Unique engine identifier",
+    )
+
+    mission_id: str = Field(
+        ...,
+        min_length=1,
+        description="Mission identifier",
+    )
+
+    correlation_id: str = Field(
+        ...,
+        min_length=1,
+        description="Request correlation identifier",
     )
 
     cycle: int = Field(
@@ -74,10 +86,6 @@ class M3M4HealthData(BaseModel):
 class RULPredictionRequest(BaseModel):
     """
     Direct M5 prediction request.
-
-    engine_id is optional for backward compatibility.
-    If it is not supplied, the API can use a default
-    engine history.
     """
 
     engine_id: str = Field(

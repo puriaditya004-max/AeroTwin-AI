@@ -42,14 +42,26 @@ class RedisCheckpointStore:
         return f"{self.key_prefix}:last-stream-id"
 
     async def save(self, state: TwinState, stream_id: str | None = None) -> None:
-        payload = state.model_dump_json()
+        payload = state.model_dump_json(exclude_none=True)
         state_key = self._state_key(state.engineId, state.missionId)
         await self.redis_client.set(state_key, payload)
         await self.redis_client.sadd(self._index_key(), state_key)
         if stream_id is not None:
             await self.redis_client.set(self._stream_key(), stream_id)
 
-    async def latest(self, engine_id: str, mission_id: str) -> TwinState | None:
+    async def all_states(self) -> list[TwinState]:
+        keys = await self.redis_client.smembers(self._index_key())
+        if not keys:
+            return []
+        values = await self.redis_client.mget(list(keys))
+        return [TwinState.model_validate_json(raw) for raw in values if raw]
+
+    async def latest(self, engine_id: str | None = None, mission_id: str | None = None) -> TwinState | None:
+        if not (engine_id and mission_id):
+            states = await self.all_states()
+            matches = [s for s in states if (not engine_id or s.engineId == engine_id)
+                       and (not mission_id or s.missionId == mission_id)]
+            return max(matches, key=lambda s: s.stateTime, default=None)
         raw = await self.redis_client.get(self._state_key(engine_id, mission_id))
         if raw is None:
             return None

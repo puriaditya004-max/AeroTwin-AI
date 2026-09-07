@@ -7,6 +7,19 @@
 
 ---
 
+## Local integration
+
+The local `integration/e2e` work connects M1-M6. From PowerShell 7 with Docker Desktop running:
+
+```powershell
+./scripts/start-local.ps1
+```
+
+See [startup and validation](docs/LOCAL_INTEGRATION.md),
+[boundary decisions](docs/decisions/005-local-integration.md), and
+[verification report](docs/INTEGRATION_REPORT.md). Docker/E2E checks and model
+calibration limitations are recorded separately from passing local contract tests.
+
 ## What This Product Does
 
 A documented simulator drives a synchronized engine-health twin. The system detects degradation, predicts a likely fault, estimates an experimental RUL proxy, explains the result, and produces a traceable operator advisory.

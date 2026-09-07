@@ -2,6 +2,9 @@
 # M5 - Pytest Configuration
 # =========================================================
 
+import os
+os.environ.setdefault("M5_ALLOW_EXPERIMENTAL_FALLBACK", "true")
+
 from pathlib import Path
 import sys
 

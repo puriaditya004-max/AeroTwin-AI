@@ -9,7 +9,7 @@ class TwinStatePublisher:
         self.stream_name = stream_name
 
     async def publish(self, state: TwinState) -> str:
-        payload = state.model_dump(mode="json")
+        payload = state.model_dump(mode="json", exclude_none=True)
         message_id = await self.redis_client.xadd(
             self.stream_name,
             {"payload": json.dumps(payload), "correlationId": state.correlationId},

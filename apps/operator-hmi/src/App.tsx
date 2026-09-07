@@ -9,8 +9,6 @@ import { AuditLog } from "./components/AuditLog";
 import { MissionReplay } from "./components/MissionReplay";
 import { useMissionSocket } from "./hooks/useMissionSocket";
 import {
-  MOCK_MISSION_ID,
-  MOCK_ENGINE_ID,
   mockHealth,
   mockFault,
   mockRul,
@@ -19,14 +17,12 @@ import {
   buildMockHistory,
 } from "./lib/mockData";
 
-// Toggle this (or wire to a Vite env var) once M3/M4/M5 are producing real
-// data end-to-end. Until then DEMO mode lets the dashboard be reviewed and
-// used for the backup pitch recording without a live backend.
-const MODE: "LIVE" | "DEMO" = (import.meta.env.VITE_HMI_MODE as "LIVE" | "DEMO") ?? "DEMO";
+// LIVE uses integrated services. Explicit DEMO is the offline backup.
+const MODE: "LIVE" | "DEMO" = (import.meta.env.VITE_HMI_MODE as "LIVE" | "DEMO") ?? "LIVE";
 const CONTROL_API_URL = import.meta.env.VITE_CONTROL_API_URL ?? "http://localhost:4000";
 
-const DEFAULT_MISSION_ID = import.meta.env.VITE_DEFAULT_MISSION_ID ?? MOCK_MISSION_ID;
-const DEFAULT_ENGINE_ID = import.meta.env.VITE_DEFAULT_ENGINE_ID ?? MOCK_ENGINE_ID;
+const DEFAULT_MISSION_ID = new URLSearchParams(window.location.search).get("missionId") ?? import.meta.env.VITE_DEFAULT_MISSION_ID ?? "MSN-LIVE-001";
+const DEFAULT_ENGINE_ID = import.meta.env.VITE_DEFAULT_ENGINE_ID ?? "ENG-001";
 
 type View = "live" | "replay";
 
@@ -45,17 +41,18 @@ export default function App() {
 
     async function loginForDemo() {
       try {
-        const res = await fetch(`${CONTROL_API_URL}/auth/dev-login`, {
+        const res = await fetch(`${CONTROL_API_URL}/auth/demo-login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ role: "OPERATOR" }),
         });
         if (!res.ok) {
-          throw new Error(`dev-login failed with ${res.status}`);
+          throw new Error(`Local demo login failed with ${res.status}`);
         }
         const data = (await res.json()) as { token: string };
         if (cancelled) return;
         window.localStorage.setItem("aerotwin.devToken", data.token);
+        setAuthError(undefined);
         setAuthToken(data.token);
       } catch (err) {
         if (!cancelled) setAuthError(err instanceof Error ? err.message : "Unable to create dev session");
@@ -68,8 +65,14 @@ export default function App() {
     };
   }, [authToken]);
 
-  const live = useMissionSocket(missionId, authToken);
-  const history = useMemo(() => buildMockHistory(), []);
+  useEffect(() => {
+    const expired = () => { window.localStorage.removeItem("aerotwin.devToken"); setAuthToken(undefined); };
+    window.addEventListener("aerotwin:auth-expired", expired);
+    return () => window.removeEventListener("aerotwin:auth-expired", expired);
+  }, []);
+  const live = useMissionSocket(missionId, authToken, MODE === "LIVE");
+  const demoHistory = useMemo(() => MODE === "DEMO" ? buildMockHistory() : [], []);
+  const history = MODE === "LIVE" ? live.history : demoHistory;
 
   const health = MODE === "LIVE" ? live.health : mockHealth;
   const fault = MODE === "LIVE" ? live.fault : mockFault;
@@ -79,10 +82,10 @@ export default function App() {
   const loadingLive = MODE === "LIVE" && (!authToken || live.loadingInitialState);
 
   const currentPoint = history[history.length - 1];
-  const sensorQuality = MODE === "LIVE" ? undefined : "OK"; // wire to latest TelemetryFrame.qualityFlag once M1/M2 feed is live
+  const sensorQuality = MODE === "LIVE" ? live.qualityFlag : "OK";
 
   const advisoryHistory = MODE === "LIVE" ? live.advisoriesHistory : [mockAdvisory];
-  const replayEntries = MODE === "LIVE" ? (live.advisoriesHistory.length > 0 ? live.advisoriesHistory : mockAdvisoryTimeline) : mockAdvisoryTimeline;
+  const replayEntries = MODE === "LIVE" ? live.advisoriesHistory : mockAdvisoryTimeline;
 
   return (
     <div className="min-h-screen">
@@ -109,6 +112,7 @@ export default function App() {
                 Live auth unavailable: {authError}. Demo mode still works for offline review.
               </div>
             )}
+            {MODE === "LIVE" && live.error && <div className="panel p-4 text-warn">{live.error}</div>}
             <RiskBanner advisory={advisory} />
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[auto_1fr]">
@@ -123,7 +127,7 @@ export default function App() {
 
             <div>
               <div className="eyebrow mb-2">Telemetry</div>
-              <TelemetryGrid history={history} current={currentPoint} qualityFlag={sensorQuality} />
+              <TelemetryGrid history={history} current={currentPoint} qualityFlag={sensorQuality} stateQuality={MODE === "LIVE" ? live.stateQuality : "GOOD"} />
             </div>
 
             <AuditLog entries={advisoryHistory} />

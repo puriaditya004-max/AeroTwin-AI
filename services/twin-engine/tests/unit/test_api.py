@@ -15,7 +15,8 @@ def test_liveness_endpoint_returns_metrics():
     assert "metrics" in response.json()["details"]
 
 
-def test_latest_state_endpoint_returns_checkpointed_state():
+def test_latest_state_endpoint_returns_checkpointed_state(monkeypatch):
+    monkeypatch.setenv("M2_CHECKPOINT_BACKEND", "memory")
     client = TestClient(app)
     payload = {
         "engineId": "ENG-API",

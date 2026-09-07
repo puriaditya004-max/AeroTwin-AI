@@ -72,7 +72,8 @@ async def test_m6_handoff_with_idempotency_header_and_retry():
     # Check header
     call_args = worker.client.post.call_args
     headers = call_args.kwargs.get("headers", {})
-    assert headers.get("X-Idempotency-Key") == "CORR-UNIQUE-1234"
+    assert headers["X-Idempotency-Key"].startswith("fault:")
+    assert worker.client.post.call_args_list[0].kwargs["headers"] == headers
 
     await worker.close()
 
@@ -82,6 +83,7 @@ async def test_worker_ack_only_after_successful_pipeline():
     """Verify Redis messages are acknowledged only after predict + M6 handoff succeeds."""
     worker = M4Worker()
     redis_client = AsyncMock()
+    redis_client.get.return_value = None
     worker.process_twin_state = AsyncMock(return_value={
         "engineId": "ENG-001",
         "missionId": "MIS-001",
@@ -92,7 +94,7 @@ async def test_worker_ack_only_after_successful_pipeline():
     await worker.handle_redis_message(
         redis_client,
         "1-0",
-        {"payload": json.dumps({"engineId": "ENG-001", "missionId": "MIS-001"})},
+        {"payload": json.dumps({"engineId": "ENG-001", "missionId": "MIS-001", "correlationId": "CORR-001", "stateTime": "2026-09-07T00:00:00Z"})},
     )
 
     redis_client.xack.assert_awaited_once_with(worker.stream_name, worker.group_name, "1-0")
@@ -105,12 +107,13 @@ async def test_worker_does_not_ack_failed_pipeline():
     """Verify failed M6 handoff leaves the Redis message pending for retry/recovery."""
     worker = M4Worker()
     redis_client = AsyncMock()
+    redis_client.get.return_value = None
     worker.process_twin_state = AsyncMock(return_value=None)
 
     await worker.handle_redis_message(
         redis_client,
         "1-1",
-        {"payload": json.dumps({"engineId": "ENG-001", "missionId": "MIS-001"})},
+        {"payload": json.dumps({"engineId": "ENG-001", "missionId": "MIS-001", "correlationId": "CORR-001", "stateTime": "2026-09-07T00:00:00Z"})},
     )
 
     redis_client.xack.assert_not_called()
@@ -123,6 +126,7 @@ async def test_worker_dead_letters_invalid_payload_and_acks_poison_message():
     """Verify invalid JSON is persisted to DLQ and acknowledged to avoid blocking the group."""
     worker = M4Worker()
     redis_client = AsyncMock()
+    redis_client.get.return_value = None
 
     await worker.handle_redis_message(redis_client, "2-0", {"payload": "{bad-json"})
 
@@ -139,9 +143,10 @@ async def test_worker_recovers_pending_message_before_reading_new_work():
     """Verify idle pending Redis messages are claimed and reprocessed by this consumer."""
     worker = M4Worker(pending_idle_ms=1)
     redis_client = AsyncMock()
+    redis_client.get.return_value = None
     redis_client.xautoclaim.return_value = (
         "0-0",
-        [("3-0", {"payload": json.dumps({"engineId": "ENG-001", "missionId": "MIS-001"})})],
+        [("3-0", {"payload": json.dumps({"engineId": "ENG-001", "missionId": "MIS-001", "correlationId": "CORR-001", "stateTime": "2026-09-07T00:00:00Z"})})],
         [],
     )
     redis_client.xpending_range.return_value = [{"times_delivered": 2}]
@@ -164,9 +169,10 @@ async def test_worker_dead_letters_poison_pending_after_delivery_limit():
     """Verify repeatedly failing pending messages are moved to DLQ after a bounded delivery count."""
     worker = M4Worker(dead_letter_after_deliveries=3)
     redis_client = AsyncMock()
+    redis_client.get.return_value = None
     redis_client.xautoclaim.return_value = (
         "0-0",
-        [("4-0", {"payload": json.dumps({"engineId": "ENG-001", "missionId": "MIS-001"})})],
+        [("4-0", {"payload": json.dumps({"engineId": "ENG-001", "missionId": "MIS-001", "correlationId": "CORR-001", "stateTime": "2026-09-07T00:00:00Z"})})],
         [],
     )
     redis_client.xpending_range.return_value = [{"times_delivered": 3}]

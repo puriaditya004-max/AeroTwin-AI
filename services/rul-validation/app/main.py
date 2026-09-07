@@ -1,6 +1,5 @@
-
 from fastapi import FastAPI, HTTPException
-
+from .rul_contract import build_rul_estimate
 from .predictor import RULPredictor
 from .schemas import (
     M3M4HealthData,
@@ -77,11 +76,7 @@ def health_check():
     """
 
     if predictor is None:
-        return {
-            "status": "unhealthy",
-            "model_loaded": False,
-            "error": model_load_error,
-        }
+        raise HTTPException(status_code=503, detail={"status": "unhealthy", "model_loaded": False, "error": model_load_error})
 
     return {
         "status": "healthy",
@@ -376,3 +371,47 @@ def clear_engine_history(
         "trend": "STABLE",
         "message": "Prediction history cleared.",
     }
+
+
+from pydantic import BaseModel, model_validator
+from contracts import TwinState, HealthSnapshot, RulEstimate, RulBasis
+
+
+class CanonicalRulRequest(BaseModel):
+    state: TwinState
+    health: HealthSnapshot
+
+    @model_validator(mode="after")
+    def same_event(self):
+        for key in ("engineId", "missionId", "correlationId"):
+            if getattr(self.state, key) != getattr(self.health, key):
+                raise ValueError(f"State/health {key} mismatch")
+        if self.state.stateTime != self.health.snapshotTime:
+            raise ValueError("State/health timestamps mismatch")
+        return self
+
+
+@app.post("/estimate", response_model=RulEstimate, response_model_exclude_none=True)
+def canonical_estimate(request: CanonicalRulRequest):
+    if predictor is None:
+        raise HTTPException(status_code=503, detail="RUL model is not loaded")
+    state, health = request.state, request.health
+    sensors = (state.model_extra or {}).get("sensors")
+    required = ("oilTempC", "vibrationMmS", "oilPressureKpa", "rpm")
+    if not isinstance(sensors, dict) or any(key not in sensors for key in required):
+        raise HTTPException(status_code=422, detail="M2 measured sensors metadata required")
+    # Keep original model's feature order; measurements use canonical units.
+    result = predictor.predict_with_uncertainty(
+        temperature=sensors["oilTempC"], vibration=sensors["vibrationMmS"],
+        pressure=sensors["oilPressureKpa"], rpm=sensors["rpm"],
+        load=state.load, health_index=health.healthScore / 100,
+    )
+    proxy = predictor.model_source.startswith("experimental:")
+    return build_rul_estimate(
+        engine_id=state.engineId, mission_id=state.missionId,
+        correlation_id=state.correlationId, estimate_time=state.stateTime,
+        predicted_rul=result["predicted_rul"], lower_bound=result["lower_bound"],
+        upper_bound=result["upper_bound"], trend=health.trend,
+        basis=RulBasis.RULE_BASED_PROXY if proxy else RulBasis.ML_REGRESSION,
+        producer_version=predictor.model_source,
+    )

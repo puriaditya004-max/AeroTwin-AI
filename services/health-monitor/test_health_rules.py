@@ -1,32 +1,42 @@
+import json
+from pathlib import Path
 import pytest
-from main import PhysicsHealthEngine, TwinStateInput
+from fastapi.testclient import TestClient
+from main import app, PhysicsHealthEngine, TwinStateInput
 
-def test_nominal_health_score():
-    engine = PhysicsHealthEngine()
-    state = TwinStateInput(
-        engineId="ENG-01",
-        missionId="MISS-01",
-        stateTime="2026-08-25T10:00:00Z",
-        load=75.0,
-        derivedFeatures={"rpm": 4500.0, "vibration_rms": 0.02},
-        margins={"temperature_margin_c": 70.0, "pressure_margin_bar": 1.5},
-        stateQuality="VALID"
-    )
-    result = engine.evaluate_health(state)
-    assert result.healthScore == 100.0
-    assert "ALL_SYSTEMS_NOMINAL" in result.reasonCodes
+def sample():
+    return json.loads((Path(__file__).resolve().parents[2] / "packages/schemas/samples/TwinState.sample.json").read_text())
 
-def test_overheating_fault_detection():
-    engine = PhysicsHealthEngine()
-    state = TwinStateInput(
-        engineId="ENG-01",
-        missionId="MISS-01",
-        stateTime="2026-08-25T10:05:00Z",
-        load=95.0,
-        derivedFeatures={"rpm": 5800.0, "vibration_rms": 0.03},
-        margins={"temperature_margin_c": 10.0, "pressure_margin_bar": 1.5}, # High temp
-        stateQuality="VALID"
-    )
-    result = engine.evaluate_health(state)
-    assert result.healthScore < 100.0
-    assert "RULE_TEMP_CRITICAL" in result.violatedRules
+def test_canonical_m2_good_state_is_accepted():
+    state = sample()
+    state["margins"] = {"tempMarginC": 45, "pressureMarginKpa": 100, "vibrationMarginMmS": 9}
+    response = TestClient(app).post("/evaluate", json=state)
+    assert response.status_code == 200
+    result = response.json()
+    assert result["healthScore"] == 100
+    assert result["correlationId"] == state["correlationId"]
+    assert result["producerVersion"] and result["snapshotTime"] and result["trend"]
+
+@pytest.mark.parametrize("margin,value,rule", [("tempMarginC", -5, "RULE_TEMP_CRITICAL"),
+    ("pressureMarginKpa", -50, "RULE_PRESSURE_LOW"), ("vibrationMarginMmS", -1, "RULE_VIBRATION_EXCEEDED")])
+def test_canonical_margins_trigger_rules(margin,value,rule):
+    state = sample()
+    state["margins"][margin] = value
+    result = PhysicsHealthEngine().evaluate_health(TwinStateInput.model_validate(state))
+    assert rule in result.violatedRules
+    assert result.healthScore < 100
+
+@pytest.mark.parametrize("quality", ["DEGRADED", "STALE"])
+def test_bad_quality_does_not_claim_engine_failure(quality):
+    state = sample()
+    state["stateQuality"] = quality
+    state["margins"]["tempMarginC"] = -100
+    result = PhysicsHealthEngine().evaluate_health(TwinStateInput.model_validate(state))
+    assert result.dataQualityIssue
+    assert result.violatedRules == []
+    assert "SENSOR_DATA_DEGRADED" in result.reasonCodes
+
+def test_missing_correlation_is_rejected():
+    state = sample()
+    del state["correlationId"]
+    assert TestClient(app).post("/evaluate", json=state).status_code == 422

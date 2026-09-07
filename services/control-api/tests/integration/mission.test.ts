@@ -108,13 +108,15 @@ describe("Mission Lifecycle & Query Routes", () => {
   it("GET /missions/:id/advisories returns advisory history", async () => {
     const token = generateTestToken("OPERATOR");
     vi.spyOn(prisma.advisory, "findMany").mockResolvedValue([
-      { id: "adv-1", missionId: "MSN-001", risk: "LOW", action: "CONTINUE" } as any,
-      { id: "adv-2", missionId: "MSN-001", risk: "HIGH", action: "INSPECT" } as any,
+      { id: "adv-1", raw: { missionId: "MSN-001", correlationId: "c1", risk: "LOW", action: "CONTINUE" } } as any,
+      { id: "adv-2", raw: { missionId: "MSN-001", correlationId: "c2", risk: "HIGH", action: "INSPECT" } } as any,
     ]);
 
     const res = await request(app).get("/missions/MSN-001/advisories").set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(2);
+    expect(res.body[0].correlationId).toBe("c1");
+    expect(res.body[1].action).toBe("INSPECT");
   });
 
   it("GET /missions/:id/audit returns audit log trail", async () => {

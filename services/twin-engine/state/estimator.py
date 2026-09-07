@@ -51,4 +51,6 @@ class TwinEstimator:
             derivedFeatures=build_derived_features(window, self.window_seconds, self.settings, self.profile),
             stateQuality=state_quality,
             syncLagMs=round(sync_lag_ms, 3),
+            sensors=frame.sensors.model_dump(mode="json"),
+            qualityFlag=frame.qualityFlag.value,
         )

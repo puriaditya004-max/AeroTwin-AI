@@ -61,3 +61,14 @@ def test_decision_fusion_stale_fallback():
     )
     assert prediction.faultType == FaultType.NONE
     assert prediction.confidence == 0.0
+
+
+def test_nominal_measured_input_suppresses_unsupported_overheating():
+    state = make_dummy_state()
+    state.margins.tempMarginC = 40
+    state.__pydantic_extra__["sensors"] = {"oilTempC":92, "coolantTempC":88}
+    result = DecisionFusionPolicy().fuse(state, 0.8, FaultType.OVERHEATING, 0.99, [])
+    assert result.faultType == FaultType.NONE
+    assert result.confidence == 0
+    # Measured anomaly evidence is retained rather than concealed.
+    assert result.anomalyScore == 0.8

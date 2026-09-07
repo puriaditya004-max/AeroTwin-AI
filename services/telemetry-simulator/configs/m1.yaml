@@ -1,0 +1,34 @@
+service:
+  name: m1-telemetry-simulator
+  version: 1.0.0
+  port: 8001
+  producerVersion: 1.0.0
+  schemaVersion: "2.0.0"
+
+streams:
+  output: telemetry.frame.v1
+  field: payload
+
+publish:
+  defaultRateHz: 1.0
+  replayEpoch: "2026-01-01T00:00:00Z"
+  maxRetryAttempts: 5
+  initialBackoffMs: 100
+  maxBackoffMs: 2000
+  backoffMultiplier: 2.0
+  leaseTtlSeconds: 5
+
+quality:
+  dropoutRate: 0.0
+  dropoutFlagRate: 0.0
+  duplicateRate: 0.0
+  outOfOrderRate: 0.0
+  outOfOrderShiftMs: 1500
+  degradedRate: 0.0
+
+scenarios:
+  normal: scenarios/normal.yaml
+  overheating: scenarios/overheating.yaml
+  oil_pressure_degradation: scenarios/oil_pressure_degradation.yaml
+  vibration_misfire: scenarios/vibration_misfire.yaml
+  sensor_dropout: scenarios/sensor_dropout.yaml

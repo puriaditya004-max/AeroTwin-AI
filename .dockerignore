@@ -1,0 +1,10 @@
+.git
+.env
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
+**/dist
+**/*.tsbuildinfo
+**/vite.config.js
+**/vite.config.d.ts

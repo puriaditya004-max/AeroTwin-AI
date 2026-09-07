@@ -111,7 +111,7 @@ async def health_ready():
     )
 
 
-@app.post("/predict", response_model=FaultPrediction)
+@app.post("/predict", response_model=FaultPrediction, response_model_exclude_none=True)
 async def predict_fault(payload: Union[TwinState, TwinStateWindow]):
     """
     Inference endpoint: accepts TwinState frame or 30s TwinStateWindow.
@@ -141,7 +141,7 @@ async def predict_fault(payload: Union[TwinState, TwinStateWindow]):
             missionId=latest.missionId,
             correlationId=latest.correlationId,
             predictionTime=now_utc,
-            producerVersion="1.0.0",
+            producerVersion="m4-fault@1.1.0-corroborated",
             faultType=FaultType.NONE,
             confidence=0.0,
             anomalyScore=0.0,
@@ -156,7 +156,7 @@ async def predict_fault(payload: Union[TwinState, TwinStateWindow]):
             confidence=0.0,
             anomalyScore=0.0,
             latencyMs=latency_ms,
-            producerVersion="1.0.0"
+            producerVersion="m4-fault@1.1.0-corroborated"
         )
         return prediction
 

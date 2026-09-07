@@ -42,7 +42,7 @@ class DecisionFusionPolicy:
                 missionId=latest_state.missionId,
                 correlationId=latest_state.correlationId,
                 predictionTime=datetime.now(timezone.utc),
-                producerVersion="1.0.0",
+                producerVersion="m4-fault@1.1.0-corroborated",
                 faultType=FaultType.NONE,
                 confidence=0.0,
                 anomalyScore=float(anomaly_score),
@@ -52,6 +52,22 @@ class DecisionFusionPolicy:
 
         final_fault = predicted_type
         final_conf = confidence
+        # Integration regression: nominal oil-temperature jitter was classified as
+        # overheating by the committed model. For measured M2 inputs, require
+        # independent physical support before surfacing a physical-fault claim.
+        # This only suppresses unsupported classes; it never fabricates a new one.
+        sensors = (latest_state.model_extra or {}).get("sensors")
+        if sensors:
+            supported = {
+                FaultType.OVERHEATING: latest_state.margins.tempMarginC < 25
+                    or sensors["oilTempC"] > 115 or sensors["coolantTempC"] > 110,
+                FaultType.OIL_PRESSURE_DEGRADATION: latest_state.margins.pressureMarginKpa < 0,
+                FaultType.VIBRATION_MISFIRE: latest_state.margins.vibrationMarginMmS < 4,
+            }
+            if final_fault in supported and not supported[final_fault]:
+                final_fault = FaultType.NONE
+                final_conf = 0.0
+                contributors = []
 
         # Physical fault claim requires calibrated classifier confidence + supporting anomaly score
         if final_fault != FaultType.NONE:
@@ -65,7 +81,7 @@ class DecisionFusionPolicy:
             missionId=latest_state.missionId,
             correlationId=latest_state.correlationId,
             predictionTime=datetime.now(timezone.utc),
-            producerVersion="1.0.0",
+            producerVersion="m4-fault@1.1.0-corroborated",
             faultType=final_fault,
             confidence=float(final_conf),
             anomalyScore=float(anomaly_score),

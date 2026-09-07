@@ -30,7 +30,7 @@ class DerivedFeatures(BaseModel):
 
 
 class TwinState(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="allow")
 
     engineId: str
     missionId: str

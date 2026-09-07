@@ -33,3 +33,6 @@ mlruns/
 services/rul-validation/training/mlflow.db
 services/rul-validation/training/data/processed/
 services/rul-validation/training/models/*.joblib
+
+apps/operator-hmi/vite.config.js
+apps/operator-hmi/vite.config.d.ts

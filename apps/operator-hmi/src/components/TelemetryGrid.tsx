@@ -1,7 +1,7 @@
 import { Line, LineChart, ResponsiveContainer, YAxis } from "recharts";
 import type { TelemetryFrame } from "../types/contracts";
 
-interface HistoryPoint {
+export interface HistoryPoint {
   t: number;
   rpm: number;
   oilPressureKpa: number;
@@ -19,13 +19,15 @@ interface Sensor {
 
 interface TelemetryGridProps {
   history: HistoryPoint[];
-  current: HistoryPoint;
+  current?: HistoryPoint;
+  stateQuality?: string;
   /** Latest TelemetryFrame.qualityFlag, if known. Undefined = unknown/not wired up yet. */
   qualityFlag?: TelemetryFrame["qualityFlag"];
 }
 
-export function TelemetryGrid({ history, current, qualityFlag }: TelemetryGridProps) {
-  const isDegraded = qualityFlag && qualityFlag !== "OK";
+export function TelemetryGrid({ history, current, qualityFlag, stateQuality }: TelemetryGridProps) {
+  if (!current) return <div className="panel p-4 text-text-muted">Waiting for measured telemetry...</div>;
+  const isDegraded = (qualityFlag && qualityFlag !== "OK") || (stateQuality && stateQuality !== "GOOD");
 
   const sensors: Sensor[] = [
     { key: "rpm", label: "RPM", unit: "rpm", current: current.rpm, color: "#4FD1E8" },
@@ -40,7 +42,7 @@ export function TelemetryGrid({ history, current, qualityFlag }: TelemetryGridPr
         <div className="mb-2 flex items-center gap-2 rounded border border-caution/30 bg-caution/10 px-3 py-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-caution" />
           <span className="eyebrow text-caution">
-            sensor data {qualityFlag?.toLowerCase()} — readings below may be stale or estimated
+            sensor data {(stateQuality ?? qualityFlag)?.toLowerCase()} — readings below may be stale or estimated
           </span>
         </div>
       )}

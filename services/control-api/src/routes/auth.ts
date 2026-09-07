@@ -53,3 +53,20 @@ authRouter.post("/dev-login", async (req, res) => {
 
   res.json({ token, user: { id: user.id, email: user.email, role: user.role } });
 });
+
+/** Explicit local laptop demo only. Compose binds this API to loopback. */
+authRouter.post("/demo-login", async (_req, res, next) => {
+  if (process.env.APP_MODE !== "local-demo" || process.env.ENABLE_DEMO_AUTH !== "true") {
+    res.status(404).json({ error: "NOT_FOUND" });
+    return;
+  }
+  try {
+    const email = "demo-viewer@aerotwin.local";
+    const user = await prisma.user.upsert({
+      where: { email }, update: { role: "VIEWER" },
+      create: { email, passwordHash: "demo-no-password-login", role: "VIEWER" },
+    });
+    const token = jwt.sign({ id: user.id, email, role: "VIEWER" }, getJwtSecret(), { expiresIn: "2h" });
+    res.json({ token, demo: true });
+  } catch (err) { next(err); }
+});

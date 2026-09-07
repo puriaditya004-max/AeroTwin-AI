@@ -1,130 +1,68 @@
-import { useEffect, useRef, useState } from "react";
-import { io, type Socket } from "socket.io-client";
-import type { HealthSnapshot, FaultPrediction, RulEstimate, MissionAdvisory } from "../types/contracts";
-
-const CONTROL_API_URL = import.meta.env.VITE_CONTROL_API_URL ?? "http://localhost:4000";
-
+import { useEffect, useState } from "react";
+import { io } from "socket.io-client";
+import type { HealthSnapshot, FaultPrediction, RulEstimate, MissionAdvisory, TelemetryFrame } from "../types/contracts";
+import type { HistoryPoint } from "../components/TelemetryGrid";
+const URL = import.meta.env.VITE_CONTROL_API_URL ?? "http://localhost:4000";
 export interface LiveMissionData {
-  connected: boolean;
-  loadingInitialState: boolean;
-  health?: HealthSnapshot;
-  fault?: FaultPrediction;
-  rul?: RulEstimate;
-  advisory?: MissionAdvisory;
-  advisoriesHistory: MissionAdvisory[];
+  connected: boolean; loadingInitialState: boolean; error?: string;
+  health?: HealthSnapshot; fault?: FaultPrediction; rul?: RulEstimate;
+  advisory?: MissionAdvisory; advisoriesHistory: MissionAdvisory[];
+  history: HistoryPoint[]; qualityFlag?: TelemetryFrame["qualityFlag"]; stateQuality?: string;
 }
-
-interface MissionStateResponse {
-  health: HealthSnapshot | null;
-  fault: FaultPrediction | null;
-  rul: RulEstimate | null;
-  advisory: MissionAdvisory | null;
-}
-
-/**
- * Subscribes to a mission's realtime events AND fetches the current state via
- * REST on mount. Without the REST fetch, a page refresh mid-mission would show
- * nothing until the next live event arrives — Socket.IO only delivers events
- * that happen after the client subscribes, not history.
- *
- * Re-connects Socket.IO when authToken or missionId changes.
- */
-export function useMissionSocket(missionId: string, authToken?: string): LiveMissionData {
-  const socketRef = useRef<Socket | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [loadingInitialState, setLoadingInitialState] = useState(true);
-  const [health, setHealth] = useState<HealthSnapshot | undefined>();
-  const [fault, setFault] = useState<FaultPrediction | undefined>();
-  const [rul, setRul] = useState<RulEstimate | undefined>();
-  const [advisory, setAdvisory] = useState<MissionAdvisory | undefined>();
-  const [advisoriesHistory, setAdvisoriesHistory] = useState<MissionAdvisory[]>([]);
-
-  // Reset state on missionId change
+const empty: LiveMissionData = { connected: false, loadingInitialState: true, advisoriesHistory: [], history: [] };
+export function useMissionSocket(missionId: string, authToken?: string, enabled = true): LiveMissionData {
+  const [data, setData] = useState<LiveMissionData>(empty);
   useEffect(() => {
-    setHealth(undefined);
-    setFault(undefined);
-    setRul(undefined);
-    setAdvisory(undefined);
-    setAdvisoriesHistory([]);
-  }, [missionId]);
-
-  // Initial REST fetch for latest state and historical advisories
-  useEffect(() => {
+    setData(empty);
+    if (!enabled || !authToken) return;
     let cancelled = false;
-
-    async function loadInitialState() {
-      setLoadingInitialState(true);
+    let busy = false;
+    const headers = { Authorization: `Bearer ${authToken}` };
+    const base = `${URL}/missions/${encodeURIComponent(missionId)}`;
+    const socket = io(URL, { transports: ["websocket"], auth: { token: authToken } });
+    async function refresh() {
+      if (busy) return;
+      busy = true;
       try {
-        const headers = authToken ? { Authorization: `Bearer ${authToken}` } : undefined;
-        const [stateRes, advRes] = await Promise.allSettled([
-          fetch(`${CONTROL_API_URL}/missions/${missionId}/state`, { headers }),
-          fetch(`${CONTROL_API_URL}/missions/${missionId}/advisories`, { headers }),
-        ]);
-
+        const responses = await Promise.all(["state", "advisories", "telemetry"].map(path =>
+          fetch(`${base}/${path}`, { headers, signal: AbortSignal.timeout(4000) })));
+        if (responses.some(r => r.status === 401)) {
+          window.dispatchEvent(new Event("aerotwin:auth-expired"));
+          return;
+        }
+        const [state, advisories, telemetry] = await Promise.all(responses.map(r => r.ok ? r.json() : null));
         if (cancelled) return;
-
-        if (stateRes.status === "fulfilled" && stateRes.value.ok) {
-          const data = (await stateRes.value.json()) as MissionStateResponse;
-          if (!cancelled) {
-            if (data.health) setHealth(data.health);
-            if (data.fault) setFault(data.fault);
-            if (data.rul) setRul(data.rul);
-            if (data.advisory) setAdvisory(data.advisory);
+        setData(prev => {
+          const next = { ...prev, loadingInitialState: false,
+            error: responses[0].ok ? undefined : "Mission state unavailable" };
+          if (state) {
+            for (const [key, time] of [["health", "snapshotTime"], ["fault", "predictionTime"], ["rul", "estimateTime"], ["advisory", "advisoryTime"]] as const) {
+              const incoming = state[key];
+              const existing = prev[key] as unknown as Record<string, string> | undefined;
+              if (incoming && (!existing || Date.parse(incoming[time]) >= Date.parse(existing[time]))) next[key] = incoming;
+            }
           }
-        }
-
-        if (advRes.status === "fulfilled" && advRes.value.ok) {
-          const advData = (await advRes.value.json()) as MissionAdvisory[];
-          if (!cancelled && Array.isArray(advData)) {
-            setAdvisoriesHistory(advData);
-          }
-        }
-      } catch (err) {
-        console.error("[useMissionSocket] failed to load initial state:", err);
-      } finally {
-        if (!cancelled) setLoadingInitialState(false);
-      }
+          if (Array.isArray(advisories)) next.advisoriesHistory = advisories;
+          if (telemetry?.sensors) {
+            const t = Date.parse(telemetry.stateTime);
+            next.history = [...prev.history.filter(p => p.t !== t), { t, ...telemetry.sensors }].sort((a,b) => a.t-b.t).slice(-120);
+            next.qualityFlag = telemetry.qualityFlag;
+            next.stateQuality = Date.now()-t > 5000 ? "STALE" : telemetry.stateQuality;
+          } else { next.stateQuality = "UNAVAILABLE"; }
+          return next;
+        });
+      } catch {
+        if (!cancelled) setData(prev => ({ ...prev, loadingInitialState: false, stateQuality: "UNAVAILABLE", error: "Backend connection unavailable" }));
+      } finally { busy = false; }
     }
-
-    loadInitialState();
-    return () => {
-      cancelled = true;
-    };
-  }, [missionId, authToken]);
-
-  // Live socket subscription
-  useEffect(() => {
-    const socket = io(CONTROL_API_URL, {
-      transports: ["websocket"],
-      auth: authToken ? { token: authToken } : undefined,
-    });
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
-      setConnected(true);
-      socket.emit("mission:subscribe", missionId);
-    });
-
-    socket.on("disconnect", () => setConnected(false));
-    socket.on("connect_error", (err) => {
-      console.error("[useMissionSocket] socket auth/connect failed:", err.message);
-      setConnected(false);
-    });
-
-    socket.on("health.updated", (payload: HealthSnapshot) => setHealth(payload));
-    socket.on("fault.predicted", (payload: FaultPrediction) => setFault(payload));
-    socket.on("rul.updated", (payload: RulEstimate) => setRul(payload));
-    socket.on("advisory.updated", (payload: MissionAdvisory) => {
-      setAdvisory(payload);
-      setAdvisoriesHistory((prev) => [...prev, payload]);
-    });
-
-    return () => {
-      socket.emit("mission:unsubscribe", missionId);
-      socket.disconnect();
-    };
-  }, [missionId, authToken]);
-
-  return { connected, loadingInitialState, health, fault, rul, advisory, advisoriesHistory };
+    socket.on("connect", () => { setData(p => ({ ...p, connected: true })); socket.emit("mission:subscribe", missionId); void refresh(); });
+    socket.on("disconnect", () => setData(p => ({ ...p, connected: false })));
+    socket.on("connect_error", () => setData(p => ({ ...p, connected: false })));
+    // Refresh durable snapshots on notifications as well as polling to recover missed events.
+    for (const event of ["health.updated", "fault.predicted", "rul.updated", "advisory.updated"]) socket.on(event, () => void refresh());
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 2000);
+    return () => { cancelled = true; window.clearInterval(timer); socket.disconnect(); };
+  }, [missionId, authToken, enabled]);
+  return data;
 }
-

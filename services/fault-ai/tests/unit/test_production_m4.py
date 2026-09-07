@@ -113,8 +113,11 @@ def test_detection_delay_calculation(client):
     assert response.status_code == 200
     data = response.json()
 
-    # When state quality is GOOD, detectionDelayMs should be present if fault is predicted or calculated
-    assert "detectionDelayMs" in data
+    # The canonical optional field is omitted when there is no fault to time.
+    if data["faultType"] == "NONE":
+        assert "detectionDelayMs" not in data
+    else:
+        assert data["detectionDelayMs"] >= 3500
 
 
 def json_serializable(d: dict) -> dict:

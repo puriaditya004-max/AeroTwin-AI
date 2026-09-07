@@ -52,8 +52,12 @@ MLFLOW_MODEL_NAME = (
 )
 
 
-# Model version to use
-MLFLOW_MODEL_VERSION = "2"
+import os
+
+MLFLOW_MODEL_VERSION = os.getenv(
+    "MLFLOW_MODEL_VERSION",
+    "4",
+)
 
 
 # =========================================================

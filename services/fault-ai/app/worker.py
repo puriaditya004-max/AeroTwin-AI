@@ -88,6 +88,7 @@ class M4Worker:
             self.rolling_windows[key] = []
 
         window = self.rolling_windows[key]
+        window[:] = [s for s in window if (s.get("correlationId"), s.get("stateTime")) != (state_dict.get("correlationId"), state_dict.get("stateTime"))]
         window.append(state_dict)
         if len(window) > 30:
             window.pop(0)
@@ -99,7 +100,7 @@ class M4Worker:
         correlation_id = prediction_payload.get("correlationId", "UNKNOWN")
         headers = {
             "Content-Type": "application/json",
-            "X-Idempotency-Key": correlation_id
+            "X-Idempotency-Key": "fault:" + __import__("hashlib").sha256(json.dumps([prediction_payload.get("engineId"), prediction_payload.get("missionId"), correlation_id, prediction_payload.get("predictionTime")]).encode()).hexdigest()
         }
 
         for attempt in range(1, self.max_retries + 1):
@@ -128,12 +129,19 @@ class M4Worker:
         self.metrics.m6_publish_failed += 1
         return False
 
-    async def process_twin_state(self, twin_state_dict: dict) -> Optional[dict]:
+    async def process_twin_state(self, twin_state_dict: dict, redis_client=None, outbox_key=None) -> Optional[dict]:
         """Processes twin state through M4 predict API and pushes to M6."""
         self.metrics.frames_received += 1
         engine_id = twin_state_dict.get("engineId", "ENG-DEFAULT")
         mission_id = twin_state_dict.get("missionId", "MIS-DEFAULT")
+        window_key = "m4:window:" + __import__("hashlib").sha256(json.dumps([engine_id, mission_id]).encode()).hexdigest()
+        if redis_client is not None:
+            previous = await redis_client.get(window_key)
+            if previous:
+                self.rolling_windows[(engine_id, mission_id)] = json.loads(previous)
         window = self.update_rolling_window(engine_id, mission_id, twin_state_dict)
+        if redis_client is not None:
+            await redis_client.set(window_key, json.dumps(window))
 
         payload = {
             "engineId": engine_id,
@@ -150,6 +158,10 @@ class M4Worker:
                 return None
 
             prediction_data = resp.json()
+            # Stable event time and durable response for retries across process restarts.
+            prediction_data["predictionTime"] = twin_state_dict["stateTime"]
+            if redis_client is not None:
+                await redis_client.set(outbox_key, json.dumps(prediction_data))
             self.metrics.predictions_succeeded += 1
             success = await self.publish_to_m6_with_retry(prediction_data)
             if success:
@@ -200,7 +212,15 @@ class M4Worker:
                 await self.send_to_dead_letter(redis_client, message_id, {}, "missing_payload")
                 return
 
-            prediction = await self.process_twin_state(state_dict)
+            identity = [state_dict[k] for k in ("engineId", "missionId", "correlationId", "stateTime")]
+            outbox_key = "m4:outbox:" + __import__("hashlib").sha256(json.dumps(identity).encode()).hexdigest()
+            cached = await redis_client.get(outbox_key)
+            if cached:
+                prediction = json.loads(cached)
+                if not await self.publish_to_m6_with_retry(prediction):
+                    prediction = None
+            else:
+                prediction = await self.process_twin_state(state_dict, redis_client, outbox_key)
             if prediction is not None:
                 await redis_client.xack(self.stream_name, self.group_name, message_id)
                 self.metrics.redis_messages_acked += 1
@@ -280,6 +300,7 @@ class M4Worker:
                     block=2000
                 )
 
+                __import__("pathlib").Path("/tmp/m4-heartbeat").write_text(str(time.time()))
                 if streams:
                     for stream, messages in streams:
                         for message_id, message_data in messages:

@@ -11,7 +11,8 @@ except ImportError:  # pragma: no cover
 
 from app.processor import TwinProcessor
 from app.settings import get_settings
-from storage.checkpoint import InMemoryCheckpointStore
+import os
+from storage.checkpoint import InMemoryCheckpointStore, RedisCheckpointStore
 
 
 settings = get_settings()
@@ -75,9 +76,25 @@ async def metrics():
     return processor.metrics_snapshot()
 
 
+async def read_latest(engine_id=None, mission_id=None):
+    # Explicit memory mode is reserved for isolated tests.
+    if os.getenv("M2_CHECKPOINT_BACKEND", "redis") == "memory":
+        states = checkpoint.all_states()
+        return max((s for s in states if (not engine_id or s.engineId == engine_id)
+                    and (not mission_id or s.missionId == mission_id)),
+                   key=lambda s: s.stateTime, default=None)
+    client = redis_async.from_url(settings.redisUrl)
+    try:
+        return await RedisCheckpointStore(client).latest(engine_id, mission_id)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Checkpoint unavailable") from exc
+    finally:
+        await client.aclose()
+
+
 @app.get("/state/latest")
 async def latest_state():
-    state = checkpoint.latest()
+    state = await read_latest()
     if state is None:
         raise HTTPException(status_code=404, detail="No TwinState has been produced yet")
     return state
@@ -85,7 +102,7 @@ async def latest_state():
 
 @app.get("/state/{engineId}")
 async def latest_engine_state(engineId: str):
-    state = checkpoint.latest(engine_id=engineId)
+    state = await read_latest(engine_id=engineId)
     if state is None:
         raise HTTPException(status_code=404, detail=f"No TwinState found for engine {engineId}")
     return state
@@ -93,7 +110,7 @@ async def latest_engine_state(engineId: str):
 
 @app.get("/state/{engineId}/{missionId}")
 async def latest_engine_mission_state(engineId: str, missionId: str):
-    state = checkpoint.latest(engine_id=engineId, mission_id=missionId)
+    state = await read_latest(engine_id=engineId, mission_id=missionId)
     if state is None:
         raise HTTPException(status_code=404, detail=f"No TwinState found for {engineId}/{missionId}")
     return state
@@ -101,8 +118,7 @@ async def latest_engine_mission_state(engineId: str, missionId: str):
 
 @app.get("/states/{missionId}/latest")
 async def latest_mission_state(missionId: str):
-    states = [state for state in checkpoint.all_states() if state.missionId == missionId]
-    state = max(states, key=lambda item: item.stateTime, default=None)
+    state = await read_latest(mission_id=missionId)
     if state is None:
         raise HTTPException(status_code=404, detail=f"No TwinState found for mission {missionId}")
     return state

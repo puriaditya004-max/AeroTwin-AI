@@ -1,17 +1,4 @@
-# AeroTwin AI - one-command local demo
-#
-# Usage:
-#   cp .env.example .env   # fill in real values first
-#   docker compose up --build
-#
-# Brings up: TimescaleDB (Postgres + Timescale extension), Redis, a one-shot
-# migration job, the Control API, and the Operator HMI. M1-M5 services will
-# be added here as each member's module is ready — see the commented
-# placeholder block at the bottom.
-#
-# Requires Docker Compose v2.20+ (for `condition: service_completed_successfully`).
-# Check with `docker compose version`.
-
+# Local laptop runtime. Run ./scripts/start-local.ps1 (Windows).
 services:
   timescaledb:
     image: timescale/timescaledb:latest-pg16
@@ -21,42 +8,49 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       POSTGRES_DB: ${POSTGRES_DB:-aerotwin}
     ports:
-      - "5432:5432"
+    - 127.0.0.1:5432:5432
     volumes:
-      - timescaledb_data:/var/lib/postgresql/data
+    - timescaledb_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aerotwin} -d ${POSTGRES_DB:-aerotwin}"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${POSTGRES_USER:-aerotwin} -d ${POSTGRES_DB:-aerotwin}
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
-
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+    - 127.0.0.1:6379:6379
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+      - CMD
+      - redis-cli
+      - ping
       interval: 5s
       timeout: 5s
       retries: 10
-
-    # One-shot job: applies Prisma migrations then seeds a test Engine+Mission,
-  # then exits. control-api waits for this to finish successfully before it
-  # starts. Uses the "build" stage (has the Prisma CLI + tsx) rather than the
-  # slim "production" stage.
+    command:
+    - redis-server
+    - --appendonly
+    - 'yes'
+    volumes:
+    - redis_data:/data
   migrate:
     build:
       context: ./services/control-api
       target: build
-    command: ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed"]
+    command:
+    - sh
+    - -c
+    - npx prisma migrate deploy && npx prisma db seed
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-aerotwin}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-aerotwin}?schema=public
     depends_on:
       timescaledb:
         condition: service_healthy
-
   control-api:
     build:
       context: ./services/control-api
@@ -69,49 +63,48 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      APP_MODE: ${APP_MODE:-deployment}
+      ENABLE_DEMO_AUTH: ${ENABLE_DEMO_AUTH:-false}
+      M2_API_URL: http://twin-engine:8002
+      M6_RUL_CRITICAL_LOWER_BOUND: ${M6_RUL_CRITICAL_LOWER_BOUND:-150}
+      M6_RUL_HIGH_CYCLES: ${M6_RUL_HIGH_CYCLES:-300}
+      M6_RUL_MEDIUM_CYCLES: ${M6_RUL_MEDIUM_CYCLES:-600}
     ports:
-      - "4000:4000"
+    - 127.0.0.1:4000:4000
     depends_on:
       migrate:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+      - CMD
+      - node
+      - -e
+      - fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
-
   operator-hmi:
     build:
       context: ./apps/operator-hmi
       args:
         VITE_CONTROL_API_URL: ${VITE_CONTROL_API_URL:-http://localhost:4000}
-        VITE_HMI_MODE: ${VITE_HMI_MODE:-DEMO}
+        VITE_HMI_MODE: ${VITE_HMI_MODE:-LIVE}
+        VITE_DEFAULT_MISSION_ID: ${M1_DEFAULT_MISSION_ID:-MSN-LIVE-001}
     restart: unless-stopped
     ports:
-      - "5173:80"
+    - 127.0.0.1:5173:80
     depends_on:
-      - control-api
-
-  # ---------------------------------------------------------------------
-  # M1-M5 services — uncomment and fill in as each module is ready.
-  # Each should expose a healthcheck and connect to redis for streams
-  # (M1/M2) or call control-api's /ingest/* endpoints directly (M3/M4/M5).
-  # ---------------------------------------------------------------------
-  # telemetry-simulator:      # M1
-  #   build: ./services/telemetry-simulator
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #
-  twin-engine:               # M2 API Service
+      control-api:
+        condition: service_healthy
+  twin-engine:
     build:
       context: ./services/twin-engine
     restart: unless-stopped
     ports:
-      - "8002:8002"
+    - 127.0.0.1:8002:8002
     environment:
       PORT: 8002
       REDIS_URL: redis://redis:6379
@@ -122,13 +115,16 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8002/health/live || exit 1"]
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8002/health/ready')
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
-
-  twin-engine-worker:        # M2 Redis Consumer Worker
+      start_period: 20s
+  twin-engine-worker:
     build:
       context: ./services/twin-engine
     command: python -m app.worker
@@ -144,18 +140,23 @@ services:
         condition: service_healthy
       twin-engine:
         condition: service_healthy
-  #
-  # health-monitor:            # M3
-  #   build: ./services/health-monitor
-  #   depends_on:
-  #     - control-api
-  #
-  fault-ai:                  # M4 API Service
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import pathlib,time; assert time.time()-float(pathlib.Path('/tmp/m2-heartbeat').read_text())
+        < 45
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  fault-ai:
     build:
       context: ./services/fault-ai
     restart: unless-stopped
     ports:
-      - "8004:8004"
+    - 127.0.0.1:8004:8004
     environment:
       PORT: 8004
       M4_ARTIFACTS_DIR: artifacts/v1
@@ -167,13 +168,16 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8004/health/live || exit 1"]
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8004/health/ready')
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
-
-  fault-ai-worker:           # M4 Redis Consumer Worker
+      start_period: 20s
+  fault-ai-worker:
     build:
       context: ./services/fault-ai
     command: python -m app.worker
@@ -195,13 +199,124 @@ services:
         condition: service_healthy
       fault-ai:
         condition: service_healthy
-
-
-  #
-  # rul-validation:            # M5
-  #   build: ./services/rul-validation
-  #   depends_on:
-  #     - control-api
-
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import pathlib,time; assert time.time()-float(pathlib.Path('/tmp/m4-heartbeat').read_text())
+        < 45
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  telemetry-simulator:
+    build: ./services/telemetry-simulator
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:8001:8001
+    environment:
+      REDIS_URL: redis://redis:6379
+      M1_ENABLE_PUBLISHER: 'false'
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8001/health/ready')
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+  telemetry-simulator-worker:
+    build: ./services/telemetry-simulator
+    command:
+    - python
+    - -m
+    - app.worker
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379
+      M1_ENABLE_PUBLISHER: 'true'
+      M1_DEFAULT_SCENARIO: ${M1_DEFAULT_SCENARIO:-normal}
+      M1_DEFAULT_MISSION_ID: ${M1_DEFAULT_MISSION_ID:-MSN-LIVE-001}
+    depends_on:
+      telemetry-simulator:
+        condition: service_healthy
+      health-monitor-worker:
+        condition: service_healthy
+      fault-ai-worker:
+        condition: service_healthy
+      twin-engine-worker:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import pathlib,time; assert time.time()-float(pathlib.Path('/tmp/m1-heartbeat').read_text())
+        < 30
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  health-monitor:
+    build:
+      context: .
+      dockerfile: services/health-monitor/Dockerfile
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:8003:8003
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8003/health')
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+  rul-validation:
+    build:
+      context: .
+      dockerfile: services/rul-validation/Dockerfile
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:8005:8005
+    environment:
+      M5_ALLOW_EXPERIMENTAL_FALLBACK: ${M5_ALLOW_EXPERIMENTAL_FALLBACK:-false}
+      M5_ENABLE_MLFLOW: 'false'
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8005/health')
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+  health-monitor-worker:
+    build: ./services/integration-worker
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379
+      M3_URL: http://health-monitor:8003
+      M5_URL: http://rul-validation:8005
+      M6_URL: http://control-api:4000
+    depends_on:
+      redis:
+        condition: service_healthy
+      health-monitor:
+        condition: service_healthy
+      rul-validation:
+        condition: service_healthy
+      control-api:
+        condition: service_healthy
 volumes:
-  timescaledb_data:
+  timescaledb_data: null
+  redis_data: null

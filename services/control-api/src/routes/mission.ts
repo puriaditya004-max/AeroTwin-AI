@@ -79,7 +79,7 @@ missionRouter.get("/:missionId/advisories", requireAuth, async (req, res) => {
     where: { missionId: req.params.missionId },
     orderBy: { advisoryTime: "asc" },
   });
-  res.json(advisories);
+  res.json(advisories.map((entry) => entry.raw));
 });
 
 /**
@@ -159,4 +159,19 @@ missionRouter.post("/:missionId/abort", requireAuth, requireRole("ADMIN", "OPERA
   await logAudit({ missionId: mission.id, userId: req.user?.id, action: "MISSION_ABORTED" });
 
   res.json(mission);
+});
+
+/** Authenticated proxy of the durable M2 checkpoint; no mock data or reconstruction. */
+missionRouter.get("/:missionId/telemetry", requireAuth, async (req, res) => {
+  try {
+    const base = process.env.M2_API_URL ?? "http://twin-engine:8002";
+    const response = await fetch(`${base}/states/${encodeURIComponent(req.params.missionId)}/latest`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) {
+      res.status(response.status === 404 ? 404 : 503).json({ error: "TELEMETRY_UNAVAILABLE" });
+      return;
+    }
+    res.json(await response.json());
+  } catch { res.status(503).json({ error: "TELEMETRY_UNAVAILABLE" }); }
 });

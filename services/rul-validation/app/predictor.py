@@ -1,9 +1,9 @@
 from pathlib import Path
 
 import joblib
-import mlflow
-import mlflow.pyfunc
+import os
 import numpy as np
+import pandas as pd
 
 from .config import (
     FEATURE_COLUMNS,
@@ -41,126 +41,59 @@ class RULPredictor:
     UNCERTAINTY_MARGIN = 0.15
 
     def __init__(self):
-
         self.model = None
         self.scaler = None
-
         self.model_source = None
         self.model_error = None
-
-        # -------------------------------------------------
-        # Validate scaler
-        # -------------------------------------------------
-
-        if not SCALER_FILE.exists():
-            raise FileNotFoundError(
-                f"Scaler not found: {SCALER_FILE}"
-            )
-
-        self.scaler = joblib.load(SCALER_FILE)
-
-        # -------------------------------------------------
-        # Try MLflow Registry first
-        # -------------------------------------------------
-
-        try:
-
-            mlflow.set_tracking_uri(
-                MLFLOW_TRACKING_URI
-            )
-
-            model_uri = (
-                f"models:/{MLFLOW_MODEL_NAME}/"
-                f"{MLFLOW_MODEL_VERSION}"
-            )
-
-            self.model = mlflow.pyfunc.load_model(
-                model_uri
-            )
-
-            self.model_source = (
-                f"mlflow:{MLFLOW_MODEL_NAME}:"
-                f"{MLFLOW_MODEL_VERSION}"
-            )
-
-            print(
-                "RUL model loaded from MLflow Registry."
-            )
-
-        except Exception as exc:
-
-            self.model_error = str(exc)
-
-            print(
-                "MLflow model loading failed."
-            )
-
-            print(
-                "Reason:",
-                self.model_error
-            )
-
-            # -------------------------------------------------
-            # Local model fallback
-            # -------------------------------------------------
-
+        if MODEL_FILE.exists() and SCALER_FILE.exists():
+            self.model = joblib.load(MODEL_FILE)
+            self.scaler = joblib.load(SCALER_FILE)
+            self.model_source = "local:rul_xgboost.joblib"
+            return
+        if os.getenv("M5_ENABLE_MLFLOW", "false").lower() == "true":
             try:
-
-                if not MODEL_FILE.exists():
-                    raise FileNotFoundError(
-                        f"Local model not found: {MODEL_FILE}"
-                    )
-
-                self.model = joblib.load(
-                    MODEL_FILE
-                )
-
-                self.model_source = (
-                    "local:rul_xgboost.joblib"
-                )
-
-                print(
-                    "Fallback successful: "
-                    "local model loaded."
-                )
-
-            except Exception as local_exc:
-
-                raise RuntimeError(
-                    "Unable to load RUL model from "
-                    "both MLflow Registry and local "
-                    f"fallback model.\n"
-                    f"MLflow error: {self.model_error}\n"
-                    f"Local model error: {local_exc}"
-                ) from local_exc
+                import mlflow
+                import mlflow.pyfunc
+                mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+                self.model = mlflow.pyfunc.load_model(f"models:/{MLFLOW_MODEL_NAME}/{MLFLOW_MODEL_VERSION}")
+                self.scaler = joblib.load(SCALER_FILE)
+                self.model_source = f"mlflow:{MLFLOW_MODEL_NAME}:{MLFLOW_MODEL_VERSION}"
+                return
+            except Exception as exc:
+                self.model_error = str(exc)
+        if os.getenv("M5_ALLOW_EXPERIMENTAL_FALLBACK", "false").lower() != "true":
+            raise RuntimeError("No local model/scaler. Explicitly enable M5_ALLOW_EXPERIMENTAL_FALLBACK for the synthetic demo.")
+        self.model = ExperimentalProxy()
+        self.scaler = IdentityScaler()
+        self.model_source = "experimental:health-proxy@1.0.0"
 
     # =====================================================
     # Feature preparation
     # =====================================================
 
     def _prepare_features(
-        self,
-        temperature: float,
-        vibration: float,
-        pressure: float,
-        rpm: float,
-        load: float,
-        health_index: float,
-    ):
+    self,
+    temperature: float,
+    vibration: float,
+    pressure: float,
+    rpm: float,
+    load: float,
+    health_index: float,
+):
 
-        features = np.array(
-            [[
-                temperature,
-                vibration,
-                pressure,
-                rpm,
-                load,
-                health_index,
-            ]],
-            dtype=float,
-        )
+     features = pd.DataFrame(
+        [[
+            temperature,
+            vibration,
+            pressure,
+            rpm,
+            load,
+            health_index,
+        ]],
+        columns=FEATURE_COLUMNS,
+    )
 
-        return self.scaler.transform(features)
+     return self.scaler.transform(features)
 
     # =====================================================
     # Raw RUL prediction
@@ -294,3 +227,16 @@ class RULPredictor:
         )
 
         return result["predicted_rul"]
+
+class IdentityScaler:
+    def transform(self, features):
+        return np.asarray(features, dtype=float)
+
+
+class ExperimentalProxy:
+    """Explainable health-index proxy, not a learned or calibrated lifetime model."""
+    def predict(self, features):
+        values = np.asarray(features, dtype=float)
+        if not np.isfinite(values).all():
+            raise ValueError("Features must be finite")
+        return MAX_RUL * np.clip(values[:, 5], 0, 1) ** 2

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import request from "supertest";
+import { hashPayload } from "../../src/services/ingest/idempotency";
 import { createApp } from "../../src/server";
 import { prisma } from "../../src/lib/prisma";
 import type { HealthSnapshot, FaultPrediction, RulEstimate } from "../../src/types/contracts";
@@ -53,6 +54,7 @@ const sampleRul: RulEstimate = {
 describe("Ingest Endpoints", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(prisma.auditEntry, "create").mockResolvedValue({} as any);
   });
 
   describe("POST /ingest/health", () => {

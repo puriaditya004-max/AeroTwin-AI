@@ -11,7 +11,9 @@ COPY . .
 # Baked in at build time — for the Docker Compose demo this points at the
 # control-api service name, not localhost. Override with --build-arg if needed.
 ARG VITE_CONTROL_API_URL=http://localhost:4000
-ARG VITE_HMI_MODE=DEMO
+ARG VITE_HMI_MODE=LIVE
+ARG VITE_DEFAULT_MISSION_ID=MSN-LIVE-001
+ENV VITE_DEFAULT_MISSION_ID=$VITE_DEFAULT_MISSION_ID
 ENV VITE_CONTROL_API_URL=$VITE_CONTROL_API_URL
 ENV VITE_HMI_MODE=$VITE_HMI_MODE
 RUN npm run build

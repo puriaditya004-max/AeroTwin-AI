@@ -1,0 +1,52 @@
+{
+  "normal": {
+    "frames": 120,
+    "uniqueFrameIds": 120,
+    "states": 120,
+    "uniqueStateIds": 120,
+    "allStatesTraceToFrames": true,
+    "allSampledOutputsTraceToStates": true,
+    "duplicateStateIds": 0,
+    "missingFrameIds": []
+  },
+  "oil_pressure_degradation": {
+    "frames": 120,
+    "uniqueFrameIds": 120,
+    "states": 120,
+    "uniqueStateIds": 120,
+    "allStatesTraceToFrames": true,
+    "allSampledOutputsTraceToStates": true,
+    "duplicateStateIds": 0,
+    "missingFrameIds": []
+  },
+  "overheating": {
+    "frames": 120,
+    "uniqueFrameIds": 120,
+    "states": 120,
+    "uniqueStateIds": 120,
+    "allStatesTraceToFrames": true,
+    "allSampledOutputsTraceToStates": true,
+    "duplicateStateIds": 0,
+    "missingFrameIds": []
+  },
+  "vibration_misfire": {
+    "frames": 120,
+    "uniqueFrameIds": 120,
+    "states": 120,
+    "uniqueStateIds": 120,
+    "allStatesTraceToFrames": true,
+    "allSampledOutputsTraceToStates": true,
+    "duplicateStateIds": 0,
+    "missingFrameIds": []
+  },
+  "sensor_dropout": {
+    "frames": 122,
+    "uniqueFrameIds": 112,
+    "states": 112,
+    "uniqueStateIds": 112,
+    "allStatesTraceToFrames": true,
+    "allSampledOutputsTraceToStates": true,
+    "duplicateStateIds": 0,
+    "missingFrameIds": []
+  }
+}

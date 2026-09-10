@@ -7,18 +7,27 @@
 
 ---
 
-## Local integration
+## Verified local demo
 
-The local `integration/e2e` work connects M1-M6. From PowerShell 7 with Docker Desktop running:
+The `integration/pre-e2e` branch connects M1-M6 and has been verified locally with Docker. From PowerShell 7 with Docker Desktop running:
 
 ```powershell
 ./scripts/start-local.ps1
 ```
 
-See [startup and validation](docs/LOCAL_INTEGRATION.md),
-[boundary decisions](docs/decisions/005-local-integration.md), and
-[verification report](docs/INTEGRATION_REPORT.md). Docker/E2E checks and model
-calibration limitations are recorded separately from passing local contract tests.
+Open the URL printed by the script. The default is `http://localhost:5173/?missionId=MSN-LIVE-001`; local port overrides are supported through `.env`.
+
+The 8 September local verification ran all five 120-second synthetic scenarios through M1 → M6, including the PostgreSQL/Redis runtime and the React operator HMI. It also verified dashboard refresh/replay, a twin-worker restart, and control-API reconnect. The run produced 592 unique twin states and 1,776 persisted health/fault/RUL outputs without duplicate persisted records.
+
+| Scenario | Observed end state |
+|---|---|
+| Normal | No physical fault; health 100 after warm-up; Continue advisory |
+| Oil-pressure degradation | `OIL_PRESSURE_DEGRADATION`; health 63; Critical / Inspect |
+| Overheating | `OVERHEATING`; health 88; Critical / Inspect |
+| Vibration/misfire | Intermittent `VIBRATION_MISFIRE`; health 85; replay verified |
+| Sensor dropout | Quality degradation; no physical-fault claim; Reduce Load advisory |
+
+See [local startup and validation](docs/LOCAL_INTEGRATION.md), [E2E report](docs/E2E_REPORT.md), [boundary decisions](docs/decisions/005-local-integration.md), and [verification evidence](docs/verification/2026-09-08/). The system remains a synthetic demonstrator: model accuracy on real engines, production load, certification and airworthiness are not claimed. M5 remains an experimental rule-based RUL proxy.
 
 ## What This Product Does
 
@@ -122,7 +131,7 @@ AeroTwin-AI/
 4. Abnormal vibration/misfire proxy — anomaly detection, confidence display
 5. Sensor dropout — quality degradation without unsupported failure claim
 
-**Priority tip:** If time runs short, get Scenario 3 (oil-pressure degradation) rock-solid end-to-end first — it's the golden demo journey. Treat the rest as stretch goals with a clear fallback.
+For a concise live demo, start with Normal → Oil-pressure degradation → Critical / Inspect → Replay. The five local synthetic scenarios above have been verified; this does not establish real-engine performance.
 
 ---
 
@@ -155,14 +164,14 @@ No direct push to `main`. PRs require tests, module README, sample output. Revie
 
 ---
 
-## Definition of Done
+## Demonstrator completion status
 
-- [ ] One command starts the complete local system + seeded demo
-- [ ] Normal + four degraded scenarios reach the same operator HMI
-- [ ] Every output includes timestamp, mission/engine id, component/model version
-- [ ] Measured metrics clearly separated from proposed field targets
-- [ ] No autonomous control, airworthiness, or real defence-data claim made
-- [ ] All six members can explain their module and its integration boundary
+- [x] One command starts the complete local system and seeded demo.
+- [x] Normal and four degraded synthetic scenarios reach the same operator HMI.
+- [x] Outputs retain timestamps, mission/engine IDs and producer/model versions.
+- [x] Synthetic test evidence is separated from real-world claims.
+- [x] No autonomous control, airworthiness or real defence-data claim is made.
+- [ ] Real-engine validation, domain-owner threshold review and production deployment are future work.
 
 ## Data Discipline
 

@@ -1,0 +1,42 @@
+{
+  "MSN-E2E-2fc19fbd-sensor_dropout": {
+    "health": 112,
+    "fault": 112,
+    "rul": 112,
+    "ledger": 336,
+    "duplicatePersistedOutputs": 0,
+    "ledgerMatchesOutputs": true
+  },
+  "MSN-E2E-2fc19fbd-normal": {
+    "health": 120,
+    "fault": 120,
+    "rul": 120,
+    "ledger": 360,
+    "duplicatePersistedOutputs": 0,
+    "ledgerMatchesOutputs": true
+  },
+  "MSN-E2E-2fc19fbd-oil_pressure_degradation": {
+    "health": 120,
+    "fault": 120,
+    "rul": 120,
+    "ledger": 360,
+    "duplicatePersistedOutputs": 0,
+    "ledgerMatchesOutputs": true
+  },
+  "MSN-E2E-2fc19fbd-overheating": {
+    "health": 120,
+    "fault": 120,
+    "rul": 120,
+    "ledger": 360,
+    "duplicatePersistedOutputs": 0,
+    "ledgerMatchesOutputs": true
+  },
+  "MSN-E2E-2fc19fbd-vibration_misfire": {
+    "health": 120,
+    "fault": 120,
+    "rul": 120,
+    "ledger": 360,
+    "duplicatePersistedOutputs": 0,
+    "ledgerMatchesOutputs": true
+  }
+}

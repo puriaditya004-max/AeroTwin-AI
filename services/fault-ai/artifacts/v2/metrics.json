@@ -1,0 +1,99 @@
+{
+  "scope": "synthetic module calibration; not E2E or real-engine validation",
+  "producerVersion": "m4-integrated@2.0.0",
+  "sklearn": "1.9.0",
+  "xgboost": "3.4.1",
+  "splits": {
+    "train": 4681,
+    "validation": 1753,
+    "test": 1754
+  },
+  "classification": {
+    "NONE": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 1445.0
+    },
+    "OVERHEATING": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 129.0
+    },
+    "OIL_PRESSURE_DEGRADATION": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 141.0
+    },
+    "VIBRATION_MISFIRE": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 39.0
+    },
+    "accuracy": 1.0,
+    "macro avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 1754.0
+    },
+    "weighted avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 1754.0
+    }
+  },
+  "confusionMatrix": [
+    [
+      1445,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      129,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      141,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      39
+    ]
+  ],
+  "normalPhysicalClaims": 0,
+  "normalMaximumAnomaly": 0.4861248731613159,
+  "featureNames": [
+    "load",
+    "tempMarginC",
+    "pressureMarginKpa",
+    "vibrationMarginMmS",
+    "rollingMeanRpm",
+    "rollingStdVibration",
+    "rateOfChangeOilTempCPerMin",
+    "window_mean_tempMarginC",
+    "window_std_tempMarginC",
+    "window_slope_tempMarginC",
+    "window_mean_pressureMarginKpa",
+    "window_std_pressureMarginKpa",
+    "window_slope_pressureMarginKpa",
+    "window_mean_vibrationMarginMmS",
+    "window_std_vibrationMarginMmS",
+    "syncLagMs",
+    "oilTempC",
+    "coolantTempC"
+  ],
+  "sensorFaultPolicy": "Poor quality returns NONE with confidence zero; no learned sensor-fault claim"
+}

@@ -68,7 +68,8 @@ print("RESULT:"+json.dumps(result))
 ''', {"states": states, "health": health})
 # Real committed models, testing windows through actual M4 HTTP boundary.
 fault = stage("fault-ai", '''
-import json,sys
+import json,sys,os
+os.environ["M4_ARTIFACTS_DIR"]="artifacts/v2"
 from fastapi.testclient import TestClient
 from app.main import app,registry
 result={}
@@ -94,6 +95,9 @@ for name in states:
         for key in ("engineId","missionId","correlationId"):
             assert state[key]==h[key]==r[key]
 assert all(f["faultType"]=="NONE" for f in fault["normal"]), fault["normal"]
+assert any(f["faultType"]=="OIL_PRESSURE_DEGRADATION" for f in fault["oil_pressure_degradation"])
+assert any(f["faultType"]=="OVERHEATING" for f in fault["overheating"])
+assert any(f["faultType"]=="VIBRATION_MISFIRE" for f in fault["vibration_misfire"])
 assert health["normal"][0]["dataQualityIssue"]  # M2 needs two samples to warm up.
 assert all(h["healthScore"]==100 for h in health["normal"][1:])
 assert any("RULE_PRESSURE_LOW" in h["violatedRules"] for h in health["oil_pressure_degradation"])

@@ -21,6 +21,7 @@ class TreeSHAPExplainer:
     """TreeSHAP feature contribution generator."""
 
     def __init__(self, model=None):
+        self.feature_names = FEATURE_NAMES
         self.explainer = None
         if model is not None and HAS_SHAP:
             self.set_model(model)
@@ -94,7 +95,7 @@ class TreeSHAPExplainer:
 
         contributors = []
         for idx in abs_indices:
-            feat_name = FEATURE_NAMES[idx] if idx < len(FEATURE_NAMES) else f"feature_{idx}"
+            feat_name = self.feature_names[idx] if idx < len(self.feature_names) else f"feature_{idx}"
             contrib_val = float(vals[idx])
             contributors.append(Contributor(feature=feat_name, contribution=contrib_val))
 

@@ -131,3 +131,31 @@ def json_serializable(d: dict) -> dict:
         else:
             res[k] = v
     return res
+
+
+def test_integrated_model_requires_measured_temperatures(monkeypatch):
+    import importlib
+    from models.registry import ModelRegistry
+    api = importlib.import_module("app.main")
+    integrated = ModelRegistry("artifacts/v2")
+    assert integrated.load_artifacts(), integrated.load_error
+    monkeypatch.setattr(api, "registry", integrated)
+    response = TestClient(app).post("/predict", json=make_good_state().model_dump(mode="json"))
+    assert response.status_code == 422
+    assert "measured" in response.json()["detail"]
+
+
+def test_integrated_model_reports_artifact_version(monkeypatch):
+    import importlib
+    from models.registry import ModelRegistry
+    api = importlib.import_module("app.main")
+    integrated = ModelRegistry("artifacts/v2")
+    assert integrated.load_artifacts(), integrated.load_error
+    monkeypatch.setattr(api, "registry", integrated)
+    state = make_good_state().model_dump(mode="json")
+    state["sensors"] = {"oilTempC": 125, "coolantTempC": 118}
+    response = TestClient(app).post("/predict", json=state)
+    assert response.status_code == 200
+    assert response.json()["producerVersion"] == "m4-integrated@2.0.0"
+    assert integrated.get_manifest()["feature_count"] == 18
+    assert all(item["feature"] in integrated.feature_pipeline.feature_names for item in response.json()["contributors"])

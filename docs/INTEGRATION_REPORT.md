@@ -1,5 +1,9 @@
 # Local integration verification report
 
+Historical report for the first integration commit. Follow-up model and Docker
+verification is recorded in [PRE_E2E_REPORT.md](PRE_E2E_REPORT.md); it supersedes
+the Docker-availability and oil-pressure-recall status below.
+
 2026-09-07. Branch `integration/e2e`, base `c115e38`. Working-tree changes are
 uncommitted for review. No GitHub push, merge or remote write was performed.
 

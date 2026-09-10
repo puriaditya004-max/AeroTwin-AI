@@ -1,0 +1,119 @@
+{
+  "normal": {
+    "missionId": "MSN-E2E-2fc19fbd-normal",
+    "samples": 41,
+    "faultTypes": [
+      "NONE"
+    ],
+    "minimumHealth": 100,
+    "qualityIssues": 0,
+    "idsTraceable": true,
+    "replayCount": 359,
+    "completeOutputs": true,
+    "risks": [
+      "LOW",
+      "MEDIUM"
+    ],
+    "actions": [
+      "CONTINUE",
+      "REDUCE_LOAD"
+    ],
+    "expectedFaultObserved": true,
+    "noPhysicalFaultClaims": true
+  },
+  "oil_pressure_degradation": {
+    "missionId": "MSN-E2E-2fc19fbd-oil_pressure_degradation",
+    "samples": 41,
+    "faultTypes": [
+      "NONE",
+      "OIL_PRESSURE_DEGRADATION"
+    ],
+    "minimumHealth": 63,
+    "qualityIssues": 0,
+    "idsTraceable": true,
+    "replayCount": 359,
+    "completeOutputs": true,
+    "risks": [
+      "CRITICAL",
+      "LOW",
+      "MEDIUM"
+    ],
+    "actions": [
+      "CONTINUE",
+      "INSPECT",
+      "REDUCE_LOAD"
+    ],
+    "expectedFaultObserved": true
+  },
+  "overheating": {
+    "missionId": "MSN-E2E-2fc19fbd-overheating",
+    "samples": 42,
+    "faultTypes": [
+      "NONE",
+      "OVERHEATING"
+    ],
+    "minimumHealth": 88,
+    "qualityIssues": 0,
+    "idsTraceable": true,
+    "replayCount": 359,
+    "completeOutputs": true,
+    "risks": [
+      "CRITICAL",
+      "LOW",
+      "MEDIUM"
+    ],
+    "actions": [
+      "CONTINUE",
+      "INSPECT",
+      "REDUCE_LOAD"
+    ],
+    "expectedFaultObserved": true
+  },
+  "vibration_misfire": {
+    "missionId": "MSN-E2E-2fc19fbd-vibration_misfire",
+    "samples": 42,
+    "faultTypes": [
+      "NONE",
+      "VIBRATION_MISFIRE"
+    ],
+    "minimumHealth": 85,
+    "qualityIssues": 0,
+    "idsTraceable": true,
+    "replayCount": 359,
+    "completeOutputs": true,
+    "risks": [
+      "CRITICAL",
+      "LOW",
+      "MEDIUM"
+    ],
+    "actions": [
+      "CONTINUE",
+      "INSPECT",
+      "REDUCE_LOAD"
+    ],
+    "expectedFaultObserved": true
+  },
+  "sensor_dropout": {
+    "missionId": "MSN-E2E-2fc19fbd-sensor_dropout",
+    "samples": 33,
+    "faultTypes": [
+      "NONE"
+    ],
+    "minimumHealth": 90,
+    "qualityIssues": 4,
+    "replayCount": 335,
+    "completeOutputs": true,
+    "samplingNote": "Polling stopped during deliberate API outage; final durable snapshot and complete replay were collected after recovery.",
+    "idsTraceable": true,
+    "risks": [
+      "LOW",
+      "MEDIUM"
+    ],
+    "actions": [
+      "CONTINUE",
+      "REDUCE_LOAD"
+    ],
+    "expectedFaultObserved": true,
+    "noPhysicalFaultClaims": true
+  }
+}

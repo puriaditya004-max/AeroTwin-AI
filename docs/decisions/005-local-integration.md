@@ -77,3 +77,12 @@ This is not model recalibration. Oil-pressure classification recall and normal
 anomaly rates remain module-owner review items. No existing model was retrained
 or replaced. The Dockerfile now copies the promoted artifacts and starts the API
 without its former unconditional training-on-boot command.
+
+### Follow-up: synthetic calibration v2
+
+The subsequent pre-E2E follow-up adds artifacts/v2 and explicitly selects it in
+Compose. It trains on real M1/M2 synthetic outputs with disjoint mission seeds,
+adding measured oil/coolant temperatures to distinguish heat onset. Shared scenario
+templates and threshold-derived labels mean these scores are module regressions,
+not independent real-world validation. v1 is retained. See PRE_E2E_REPORT.md and
+the v2 model card for current evidence and scope.

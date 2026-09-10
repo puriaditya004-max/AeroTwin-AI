@@ -33,8 +33,9 @@ FEATURE_NAMES = [
 class FeaturePipeline:
     """Deterministic feature extractor."""
 
-    def __init__(self):
-        self.feature_names = FEATURE_NAMES
+    def __init__(self, include_sensor_temperatures: bool = False):
+        self.include_sensor_temperatures = include_sensor_temperatures
+        self.feature_names = FEATURE_NAMES + (["oilTempC", "coolantTempC"] if include_sensor_temperatures else [])
 
     def extract_from_window(self, states: List[TwinState]) -> np.ndarray:
         """Converts a window of TwinState objects into a single 1D feature array."""
@@ -69,6 +70,11 @@ class FeaturePipeline:
             float(np.std(v_margins)),
             float(latest.syncLagMs if latest.syncLagMs is not None else 0.0)
         ]
+        if self.include_sensor_temperatures:
+            sensors = (latest.model_extra or {}).get("sensors", {})
+            if any(key not in sensors for key in ("oilTempC", "coolantTempC")):
+                raise ValueError("Integrated model requires measured oilTempC and coolantTempC metadata")
+            vec.extend([float(sensors["oilTempC"]), float(sensors["coolantTempC"])])
         return np.array(vec, dtype=np.float32)
 
     def transform_df(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -95,4 +101,7 @@ class FeaturePipeline:
 
         res_df["syncLagMs"] = df["syncLagMs"]
 
-        return res_df[FEATURE_NAMES]
+        if self.include_sensor_temperatures:
+            res_df["oilTempC"] = df["oilTempC"]
+            res_df["coolantTempC"] = df["coolantTempC"]
+        return res_df[self.feature_names]

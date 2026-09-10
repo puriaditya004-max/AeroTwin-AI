@@ -1,6 +1,16 @@
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
-if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw 'Docker Desktop with Compose v2 is required. Install/start it, then run this script again.' }
+$dockerCommand = Get-Command docker -ErrorAction SilentlyContinue
+$dockerExecutable = if ($dockerCommand) { $dockerCommand.Source } else { $null }
+if (-not $dockerExecutable) {
+    $dockerExecutable = @(
+        "$env:LOCALAPPDATA/Programs/DockerDesktop/resources/bin/docker.exe",
+        "$env:ProgramFiles/Docker/Docker/resources/bin/docker.exe"
+    ) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+}
+if (-not $dockerExecutable) { throw 'Docker Desktop with Compose is required. Install it, then run this script again.' }
+& $dockerExecutable info --format '{{.ServerVersion}}'
+if ($LASTEXITCODE -ne 0) { throw 'Docker engine is unavailable. Open Docker Desktop and resolve its startup warning, then retry.' }
 if (-not (Test-Path -LiteralPath '.env')) {
     $demoDbPassword = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
     $demoJwtSecret = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
@@ -20,8 +30,11 @@ M6_RUL_HIGH_CYCLES=100
 M6_RUL_MEDIUM_CYCLES=200
 "@ | Set-Content -LiteralPath '.env' -Encoding utf8
 }
-docker compose config --quiet
+& $dockerExecutable compose config --quiet
 if ($LASTEXITCODE -ne 0) { throw 'Compose configuration failed' }
-docker compose up --build -d --wait --wait-timeout 300
+& $dockerExecutable compose up --build -d --wait --wait-timeout 300
 if ($LASTEXITCODE -ne 0) { throw 'Startup failed; inspect docker compose ps and docker compose logs' }
-Write-Host 'LIVE HMI: http://localhost:5173/?missionId=MSN-LIVE-001'
+$hmiBinding = & $dockerExecutable compose port operator-hmi 80
+if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the HMI port' }
+$hmiPort = ($hmiBinding -split ':')[-1]
+Write-Host "LIVE HMI: http://localhost:$hmiPort/?missionId=MSN-LIVE-001"

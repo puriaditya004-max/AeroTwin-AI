@@ -1,0 +1,492 @@
+[
+  {
+    "split": "train",
+    "scenario": "normal",
+    "seed": 100,
+    "missionId": "MSN-NORMAL-100",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "normal",
+    "seed": 101,
+    "missionId": "MSN-NORMAL-101",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "normal",
+    "seed": 102,
+    "missionId": "MSN-NORMAL-102",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "normal",
+    "seed": 103,
+    "missionId": "MSN-NORMAL-103",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "normal",
+    "seed": 104,
+    "missionId": "MSN-NORMAL-104",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "normal",
+    "seed": 105,
+    "missionId": "MSN-NORMAL-105",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "normal",
+    "seed": 106,
+    "missionId": "MSN-NORMAL-106",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "normal",
+    "seed": 107,
+    "missionId": "MSN-NORMAL-107",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "oil_pressure_degradation",
+    "seed": 100,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-100",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "oil_pressure_degradation",
+    "seed": 101,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-101",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "oil_pressure_degradation",
+    "seed": 102,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-102",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "oil_pressure_degradation",
+    "seed": 103,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-103",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "oil_pressure_degradation",
+    "seed": 104,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-104",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "oil_pressure_degradation",
+    "seed": 105,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-105",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "oil_pressure_degradation",
+    "seed": 106,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-106",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "oil_pressure_degradation",
+    "seed": 107,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-107",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "overheating",
+    "seed": 100,
+    "missionId": "MSN-OVERHEATING-100",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "overheating",
+    "seed": 101,
+    "missionId": "MSN-OVERHEATING-101",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "overheating",
+    "seed": 102,
+    "missionId": "MSN-OVERHEATING-102",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "overheating",
+    "seed": 103,
+    "missionId": "MSN-OVERHEATING-103",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "overheating",
+    "seed": 104,
+    "missionId": "MSN-OVERHEATING-104",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "overheating",
+    "seed": 105,
+    "missionId": "MSN-OVERHEATING-105",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "overheating",
+    "seed": 106,
+    "missionId": "MSN-OVERHEATING-106",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "overheating",
+    "seed": 107,
+    "missionId": "MSN-OVERHEATING-107",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "sensor_dropout",
+    "seed": 100,
+    "missionId": "MSN-SENSOR_DROPOUT-100",
+    "states": 105
+  },
+  {
+    "split": "train",
+    "scenario": "sensor_dropout",
+    "seed": 101,
+    "missionId": "MSN-SENSOR_DROPOUT-101",
+    "states": 102
+  },
+  {
+    "split": "train",
+    "scenario": "sensor_dropout",
+    "seed": 102,
+    "missionId": "MSN-SENSOR_DROPOUT-102",
+    "states": 108
+  },
+  {
+    "split": "train",
+    "scenario": "sensor_dropout",
+    "seed": 103,
+    "missionId": "MSN-SENSOR_DROPOUT-103",
+    "states": 104
+  },
+  {
+    "split": "train",
+    "scenario": "sensor_dropout",
+    "seed": 104,
+    "missionId": "MSN-SENSOR_DROPOUT-104",
+    "states": 107
+  },
+  {
+    "split": "train",
+    "scenario": "sensor_dropout",
+    "seed": 105,
+    "missionId": "MSN-SENSOR_DROPOUT-105",
+    "states": 104
+  },
+  {
+    "split": "train",
+    "scenario": "sensor_dropout",
+    "seed": 106,
+    "missionId": "MSN-SENSOR_DROPOUT-106",
+    "states": 104
+  },
+  {
+    "split": "train",
+    "scenario": "sensor_dropout",
+    "seed": 107,
+    "missionId": "MSN-SENSOR_DROPOUT-107",
+    "states": 107
+  },
+  {
+    "split": "train",
+    "scenario": "vibration_misfire",
+    "seed": 100,
+    "missionId": "MSN-VIBRATION_MISFIRE-100",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "vibration_misfire",
+    "seed": 101,
+    "missionId": "MSN-VIBRATION_MISFIRE-101",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "vibration_misfire",
+    "seed": 102,
+    "missionId": "MSN-VIBRATION_MISFIRE-102",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "vibration_misfire",
+    "seed": 103,
+    "missionId": "MSN-VIBRATION_MISFIRE-103",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "vibration_misfire",
+    "seed": 104,
+    "missionId": "MSN-VIBRATION_MISFIRE-104",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "vibration_misfire",
+    "seed": 105,
+    "missionId": "MSN-VIBRATION_MISFIRE-105",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "vibration_misfire",
+    "seed": 106,
+    "missionId": "MSN-VIBRATION_MISFIRE-106",
+    "states": 120
+  },
+  {
+    "split": "train",
+    "scenario": "vibration_misfire",
+    "seed": 107,
+    "missionId": "MSN-VIBRATION_MISFIRE-107",
+    "states": 120
+  },
+  {
+    "split": "validation",
+    "scenario": "normal",
+    "seed": 200,
+    "missionId": "MSN-NORMAL-200",
+    "states": 120
+  },
+  {
+    "split": "validation",
+    "scenario": "normal",
+    "seed": 201,
+    "missionId": "MSN-NORMAL-201",
+    "states": 120
+  },
+  {
+    "split": "validation",
+    "scenario": "normal",
+    "seed": 202,
+    "missionId": "MSN-NORMAL-202",
+    "states": 120
+  },
+  {
+    "split": "validation",
+    "scenario": "oil_pressure_degradation",
+    "seed": 200,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-200",
+    "states": 120
+  },
+  {
+    "split": "validation",
+    "scenario": "oil_pressure_degradation",
+    "seed": 201,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-201",
+    "states": 120
+  },
+  {
+    "split": "validation",
+    "scenario": "oil_pressure_degradation",
+    "seed": 202,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-202",
+    "states": 120
+  },
+  {
+    "split": "validation",
+    "scenario": "overheating",
+    "seed": 200,
+    "missionId": "MSN-OVERHEATING-200",
+    "states": 120
+  },
+  {
+    "split": "validation",
+    "scenario": "overheating",
+    "seed": 201,
+    "missionId": "MSN-OVERHEATING-201",
+    "states": 120
+  },
+  {
+    "split": "validation",
+    "scenario": "overheating",
+    "seed": 202,
+    "missionId": "MSN-OVERHEATING-202",
+    "states": 120
+  },
+  {
+    "split": "validation",
+    "scenario": "sensor_dropout",
+    "seed": 200,
+    "missionId": "MSN-SENSOR_DROPOUT-200",
+    "states": 106
+  },
+  {
+    "split": "validation",
+    "scenario": "sensor_dropout",
+    "seed": 201,
+    "missionId": "MSN-SENSOR_DROPOUT-201",
+    "states": 102
+  },
+  {
+    "split": "validation",
+    "scenario": "sensor_dropout",
+    "seed": 202,
+    "missionId": "MSN-SENSOR_DROPOUT-202",
+    "states": 105
+  },
+  {
+    "split": "validation",
+    "scenario": "vibration_misfire",
+    "seed": 200,
+    "missionId": "MSN-VIBRATION_MISFIRE-200",
+    "states": 120
+  },
+  {
+    "split": "validation",
+    "scenario": "vibration_misfire",
+    "seed": 201,
+    "missionId": "MSN-VIBRATION_MISFIRE-201",
+    "states": 120
+  },
+  {
+    "split": "validation",
+    "scenario": "vibration_misfire",
+    "seed": 202,
+    "missionId": "MSN-VIBRATION_MISFIRE-202",
+    "states": 120
+  },
+  {
+    "split": "test",
+    "scenario": "normal",
+    "seed": 300,
+    "missionId": "MSN-NORMAL-300",
+    "states": 120
+  },
+  {
+    "split": "test",
+    "scenario": "normal",
+    "seed": 301,
+    "missionId": "MSN-NORMAL-301",
+    "states": 120
+  },
+  {
+    "split": "test",
+    "scenario": "normal",
+    "seed": 302,
+    "missionId": "MSN-NORMAL-302",
+    "states": 120
+  },
+  {
+    "split": "test",
+    "scenario": "oil_pressure_degradation",
+    "seed": 300,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-300",
+    "states": 120
+  },
+  {
+    "split": "test",
+    "scenario": "oil_pressure_degradation",
+    "seed": 301,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-301",
+    "states": 120
+  },
+  {
+    "split": "test",
+    "scenario": "oil_pressure_degradation",
+    "seed": 302,
+    "missionId": "MSN-OIL_PRESSURE_DEGRADATION-302",
+    "states": 120
+  },
+  {
+    "split": "test",
+    "scenario": "overheating",
+    "seed": 300,
+    "missionId": "MSN-OVERHEATING-300",
+    "states": 120
+  },
+  {
+    "split": "test",
+    "scenario": "overheating",
+    "seed": 301,
+    "missionId": "MSN-OVERHEATING-301",
+    "states": 120
+  },
+  {
+    "split": "test",
+    "scenario": "overheating",
+    "seed": 302,
+    "missionId": "MSN-OVERHEATING-302",
+    "states": 120
+  },
+  {
+    "split": "test",
+    "scenario": "sensor_dropout",
+    "seed": 300,
+    "missionId": "MSN-SENSOR_DROPOUT-300",
+    "states": 106
+  },
+  {
+    "split": "test",
+    "scenario": "sensor_dropout",
+    "seed": 301,
+    "missionId": "MSN-SENSOR_DROPOUT-301",
+    "states": 101
+  },
+  {
+    "split": "test",
+    "scenario": "sensor_dropout",
+    "seed": 302,
+    "missionId": "MSN-SENSOR_DROPOUT-302",
+    "states": 107
+  },
+  {
+    "split": "test",
+    "scenario": "vibration_misfire",
+    "seed": 300,
+    "missionId": "MSN-VIBRATION_MISFIRE-300",
+    "states": 120
+  },
+  {
+    "split": "test",
+    "scenario": "vibration_misfire",
+    "seed": 301,
+    "missionId": "MSN-VIBRATION_MISFIRE-301",
+    "states": 120
+  },
+  {
+    "split": "test",
+    "scenario": "vibration_misfire",
+    "seed": 302,
+    "missionId": "MSN-VIBRATION_MISFIRE-302",
+    "states": 120
+  }
+]

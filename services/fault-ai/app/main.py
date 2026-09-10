@@ -141,7 +141,7 @@ async def predict_fault(payload: Union[TwinState, TwinStateWindow]):
             missionId=latest.missionId,
             correlationId=latest.correlationId,
             predictionTime=now_utc,
-            producerVersion="m4-fault@1.1.0-corroborated",
+            producerVersion=registry.producer_version,
             faultType=FaultType.NONE,
             confidence=0.0,
             anomalyScore=0.0,
@@ -156,12 +156,15 @@ async def predict_fault(payload: Union[TwinState, TwinStateWindow]):
             confidence=0.0,
             anomalyScore=0.0,
             latencyMs=latency_ms,
-            producerVersion="m4-fault@1.1.0-corroborated"
+            producerVersion=registry.producer_version
         )
         return prediction
 
     # 1. Extract Feature Vector
-    feature_vec = registry.feature_pipeline.extract_from_window(states)
+    try:
+        feature_vec = registry.feature_pipeline.extract_from_window(states)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     # 2. Anomaly Engine Inference
     anomaly_score = float(registry.anomaly_engine.predict_anomaly_score(feature_vec.reshape(1, -1))[0])
@@ -189,6 +192,7 @@ async def predict_fault(payload: Union[TwinState, TwinStateWindow]):
     )
 
     # 6. Detection Delay Calculation for labeled replay scenarios
+    prediction.producerVersion = registry.producer_version
     if prediction.faultType != FaultType.NONE and onset_timestamp is not None:
         if onset_timestamp.tzinfo is None:
             onset_timestamp = onset_timestamp.replace(tzinfo=timezone.utc)

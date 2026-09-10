@@ -31,6 +31,7 @@ class ModelRegistry:
         self.missing_artifacts: list[str] = []
         self.load_error: str | None = None
         self.loaded_at: str | None = None
+        self.producer_version = "m4-fault@1.1.0-corroborated"
 
     def calculate_checksum(self, filepath: str) -> str:
         """Calculates SHA256 checksum of an artifact file."""
@@ -74,6 +75,17 @@ class ModelRegistry:
             return False
 
         try:
+            self.feature_pipeline = FeaturePipeline()
+            self.producer_version = "m4-fault@1.1.0-corroborated"
+            metrics_path = os.path.join(self.artifacts_dir, "metrics.json")
+            if os.path.exists(metrics_path):
+                with open(metrics_path) as handle:
+                    metadata = json.load(handle)
+                self.feature_pipeline = FeaturePipeline(include_sensor_temperatures="oilTempC" in metadata.get("featureNames", []))
+                if metadata.get("featureNames") and metadata["featureNames"] != self.feature_pipeline.feature_names:
+                    raise ValueError("Artifact feature order does not match runtime pipeline")
+                self.producer_version = metadata.get("producerVersion", self.producer_version)
+            self.explainer.feature_names = self.feature_pipeline.feature_names
             self.anomaly_engine.load(iforest_path)
             self.classifier.load(
                 xgb_json_path,
@@ -101,6 +113,7 @@ class ModelRegistry:
 
         return {
             "is_loaded": self.is_loaded,
+            "producerVersion": self.producer_version,
             "artifacts_dir": self.artifacts_dir,
             "loaded_at": self.loaded_at,
             "missing_artifacts": self.missing_artifacts,

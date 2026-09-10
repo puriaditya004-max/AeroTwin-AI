@@ -1,0 +1,11 @@
+{
+  "services\\telemetry-simulator\\configs\\scenarios\\normal.yaml": "2847c54d8ed13ae01a92365965e03f9cc9cb9648fd1468c579b7ee7370c0309e",
+  "services\\telemetry-simulator\\configs\\scenarios\\oil_pressure_degradation.yaml": "dcc11efd24b0fc92e4f13333822d33f19f089ebdb2bc468722e924ac462b555c",
+  "services\\telemetry-simulator\\configs\\scenarios\\overheating.yaml": "e55b82129c61ac3aba68f6336505d99161cf191fc4b8923de5dc8fbe603ccd7c",
+  "services\\telemetry-simulator\\configs\\scenarios\\sensor_dropout.yaml": "13243a4faf2a514b0baeeb8f7d5c74bdf41cdc6ac56f378c70b172aa5413d4f6",
+  "services\\telemetry-simulator\\configs\\scenarios\\vibration_misfire.yaml": "da39969c03bad4f7c94781394c9ec6cd253c31f92b368058c0e83f28232cbd8f",
+  "services\\twin-engine\\state\\estimator.py": "ae9b94000aacf56f4c06c459484ecfe536e9f3fc610212ff97897752eb70c880",
+  "services\\twin-engine\\state\\features.py": "d5da15ff970d9bae82fd84675ef2ba1b154fda612ff03e9d004df7359328300c",
+  "services\\fault-ai\\features\\builder.py": "8a9465d95705666868a29246e6ba16a11c39cf13f17f142ff3eb11ed3cbd2451",
+  "scripts\\calibrate-m4.py": "48bdd21cc271ff3c81b7fcbcf059d544fad8e8b990654fdf237d0c3b1c3ead71"
+}

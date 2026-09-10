@@ -1,8 +1,8 @@
 # Run the local integration
 
 Windows prerequisites: PowerShell 7, Docker Desktop running Linux containers,
-Docker Compose v2.20 or later. Docker was not available on the integration machine;
-container image builds, migrations, service health and final E2E require validation.
+Docker Compose v2.20 or later. The startup script also finds per-user Docker Desktop
+installations when Docker is missing from PATH. See E2E_REPORT.md for completed local synthetic validation.
 
 From the repository root:
 
@@ -13,12 +13,26 @@ From the repository root:
 The script generates an ignored `.env` with random local secrets if absent,
 explicitly enables laptop demo authentication and the experimental RUL proxy,
 validates Compose and starts the stack. Existing `.env` files are preserved.
+Compose selects M4 artifacts/v2, calibrated on measured M1/M2 synthetic inputs.
+The model card documents the shared scenario templates and limits of these scores.
 Open http://localhost:5173/?missionId=MSN-LIVE-001. The normal synthetic run starts
 automatically, lasts 120 seconds and then stops. Telemetry becomes STALE after
 five seconds without new data. Initial M2 warm-up requires two samples.
 
 For manual configuration, copy `.env.example`, replace placeholders, and set the
 local flags as explained there before `docker compose up --build`.
+
+On this laptop, the older Downloads stack still occupies the default ports. The
+ignored local `.env` selects HMI 15173, API 14000 and M1–M5 18001–18005. Open
+http://localhost:15173/?missionId=MSN-LIVE-001 here. The default examples below
+apply to a fresh machine; substitute these local ports on this laptop.
+
+The HTTP/database smoke creates one uniquely named test mission and verifies
+202 fresh/duplicate ingest, 409 conflicts, authorization and persisted snapshots:
+
+```powershell
+python scripts/runtime-smoke.py --api-url http://localhost:14000
+```
 
 ## Runtime map
 
@@ -88,8 +102,7 @@ degradation, overheating, vibration/misfire, sensor dropout. Verify the same HMI
 receives all outputs; normal has no critical advisory; quality faults do not claim
 an engine failure; IDs remain traceable; refresh recovers state. Restart
 `twin-engine-worker` mid-run and inspect pending/output counts and unchanged
-idempotency. Capture logs and HMI screenshots for each scenario. These final
-Docker/browser tests have not been claimed passed by the local implementation.
+idempotency. Capture logs and HMI screenshots for each scenario. The 8 September local Docker/browser results are recorded in E2E_REPORT.md.
 
 ## Troubleshooting and shutdown
 

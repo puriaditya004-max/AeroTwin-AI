@@ -23,10 +23,18 @@ class Margins(BaseModel):
 
 
 class DerivedFeatures(BaseModel):
+    model_config = ConfigDict(extra="allow")
     rollingMeanRpm: float
     rollingStdVibration: float
     rateOfChangeOilTempCPerMin: float
     sampleWindowSeconds: float = Field(default=30.0, ge=0)
+    oilTempDeviationC: Optional[float] = None
+    coolantTempDeviationC: Optional[float] = None
+    vibrationDeviationMmS: Optional[float] = None
+    expectedOilTempC: Optional[float] = None
+    expectedCoolantTempC: Optional[float] = None
+    expectedOilPressureKpa: Optional[float] = None
+    expectedVibrationMmS: Optional[float] = None
 
 
 class TwinState(BaseModel):

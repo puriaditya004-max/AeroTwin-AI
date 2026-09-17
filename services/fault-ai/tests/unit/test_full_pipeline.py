@@ -72,3 +72,20 @@ def test_nominal_measured_input_suppresses_unsupported_overheating():
     assert result.confidence == 0
     # Measured anomaly evidence is retained rather than concealed.
     assert result.anomalyScore == 0.8
+
+
+def test_context_adjusted_temperature_prevents_false_overheating_claim():
+    state = make_dummy_state()
+    state.derivedFeatures.oilTempDeviationC = 2.0
+    state.derivedFeatures.coolantTempDeviationC = 3.0
+    result = DecisionFusionPolicy().fuse(state, 0.8, FaultType.OVERHEATING, 0.99, [])
+
+    assert result.faultType == FaultType.NONE
+
+
+def test_context_adjusted_pressure_drop_corrobates_oil_fault():
+    state = make_dummy_state()
+    state.derivedFeatures.oilPressureDeviationKpa = -40.0
+    result = DecisionFusionPolicy().fuse(state, 0.8, FaultType.OIL_PRESSURE_DEGRADATION, 0.99, [])
+
+    assert result.faultType == FaultType.OIL_PRESSURE_DEGRADATION

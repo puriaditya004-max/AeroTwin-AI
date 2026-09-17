@@ -28,6 +28,7 @@ quality:
 
 scenarios:
   normal: scenarios/normal.yaml
+  high_altitude_hot_cruise: scenarios/high_altitude_hot_cruise.yaml
   overheating: scenarios/overheating.yaml
   oil_pressure_degradation: scenarios/oil_pressure_degradation.yaml
   vibration_misfire: scenarios/vibration_misfire.yaml

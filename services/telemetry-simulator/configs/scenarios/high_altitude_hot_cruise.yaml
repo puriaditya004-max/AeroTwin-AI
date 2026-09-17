@@ -1,0 +1,43 @@
+id: high_altitude_hot_cruise
+name: High-altitude hot cruise
+description: Context-validation scenario. Elevated temperature values remain within the environment-adjusted demonstrator baseline; no physical fault is injected.
+engineId: ENG-001
+durationSeconds: 120
+publishRateHz: 1.0
+seed: 43
+fault:
+  injectAfterSeconds: 30
+  sensors: {}
+quality:
+  dropoutRate: 0.0
+  dropoutFlagRate: 0.0
+  duplicateRate: 0.0
+  outOfOrderRate: 0.0
+  degradedRate: 0.0
+nominal:
+  rpm: { mean: 2550, jitter: 20 }
+  oilPressureKpa: { mean: 410, jitter: 5 }
+  oilTempC: { mean: 112, jitter: 1.2 }
+  coolantTempC: { mean: 116, jitter: 1.2 }
+  vibrationMmS: { mean: 3.8, jitter: 0.2 }
+  fuelFlowLph: { mean: 21, jitter: 0.5 }
+  throttlePct: { mean: 76, jitter: 1.0 }
+  altitudeM: { mean: 6500, jitter: 15 }
+  ambientTempC: { mean: 34, jitter: 0.4 }
+  ambientPressureKpa: { mean: 44, jitter: 0.5 }
+  chtCylindersC:
+    values:
+      - { mean: 198, jitter: 1.0 }
+      - { mean: 201, jitter: 1.0 }
+      - { mean: 199, jitter: 1.0 }
+      - { mean: 200, jitter: 1.0 }
+  egtCylindersC:
+    values:
+      - { mean: 730, jitter: 4 }
+      - { mean: 738, jitter: 4 }
+      - { mean: 734, jitter: 4 }
+      - { mean: 736, jitter: 4 }
+  alternatorVoltageV: { mean: 27.1, jitter: 0.2 }
+  alternatorCurrentA: { mean: 20, jitter: 0.4 }
+  batteryVoltageV: { mean: 24.8, jitter: 0.15 }
+  injectionTimingDeg: { mean: 18.0, jitter: 0.2 }

@@ -7,6 +7,7 @@ from simulation.seed import derive_correlation_id, derive_mission_id
 
 SCENARIOS = (
     "normal",
+    "high_altitude_hot_cruise",
     "overheating",
     "oil_pressure_degradation",
     "vibration_misfire",
@@ -79,3 +80,11 @@ def test_normal_stays_inside_nominal_band():
     coolants = [frame.sensors.coolantTempC for frame in frames]
     assert max(pressures) - min(pressures) < 30
     assert max(coolants) - min(coolants) < 10
+
+
+def test_high_altitude_hot_cruise_is_registered_as_a_no_fault_context_case():
+    model, frames = _replay("high_altitude_hot_cruise", seed=43)
+
+    assert model.fault_sensors == {}
+    assert frames[-1].sensors.altitudeM > 6000
+    assert frames[-1].sensors.ambientTempC > 30

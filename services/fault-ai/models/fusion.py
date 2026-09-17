@@ -57,7 +57,39 @@ class DecisionFusionPolicy:
         # independent physical support before surfacing a physical-fault claim.
         # This only suppresses unsupported classes; it never fabricates a new one.
         sensors = (latest_state.model_extra or {}).get("sensors")
-        if sensors:
+        derived = latest_state.derivedFeatures
+        has_context_baseline = any(
+            value is not None
+            for value in (
+                derived.oilTempDeviationC,
+                derived.coolantTempDeviationC,
+                derived.oilPressureDeviationKpa,
+                derived.vibrationDeviationMmS,
+            )
+        )
+        if has_context_baseline:
+            # M2's environment-aware baseline is authoritative when present.
+            # The bounds are demonstrator safety gates: they corroborate a
+            # classifier result, but never create a fault on their own.
+            supported = {
+                FaultType.OVERHEATING: (
+                    (derived.oilTempDeviationC is not None and derived.oilTempDeviationC > 8.0)
+                    or (derived.coolantTempDeviationC is not None and derived.coolantTempDeviationC > 8.0)
+                ),
+                FaultType.OIL_PRESSURE_DEGRADATION: (
+                    derived.oilPressureDeviationKpa is not None
+                    and derived.oilPressureDeviationKpa < -25.0
+                ),
+                FaultType.VIBRATION_MISFIRE: (
+                    derived.vibrationDeviationMmS is not None
+                    and derived.vibrationDeviationMmS > 2.0
+                ),
+            }
+            if final_fault in supported and not supported[final_fault]:
+                final_fault = FaultType.NONE
+                final_conf = 0.0
+                contributors = []
+        elif sensors:
             supported = {
                 FaultType.OVERHEATING: latest_state.margins.tempMarginC < 25
                     or sensors["oilTempC"] > 115 or sensors["coolantTempC"] > 110,

@@ -2,6 +2,7 @@ import numpy as np
 
 from app.contracts import DerivedFeatures, TelemetryFrame
 from app.settings import EngineProfile, EstimatorSettings
+from state.environment import expected_values
 
 
 def _slope_per_min(values: list[float], window: list[TelemetryFrame]) -> float:
@@ -79,13 +80,25 @@ def build_derived_features(
     injection_deviation = None
     alternator_margin = None
     battery_margin = None
+    oil_temp_deviation = None
+    coolant_temp_deviation = None
+    vibration_deviation = None
+    expected = None
     if estimator is not None:
         rpm_norm = min(1.0, max(0.0, latest.sensors.rpm / estimator.maxRpm))
         throttle_norm = min(1.0, max(0.0, latest.sensors.throttlePct / 100.0))
         expected_fuel = estimator.maxFuelFlowLph * (0.15 + 0.85 * throttle_norm)
         fuel_flow_deviation = round(latest.sensors.fuelFlowLph - expected_fuel, 3)
-        expected_pressure = estimator.baseOilPressureMinKpa + estimator.loadOilPressureSlopeKpa * (rpm_norm * 100.0)
-        oil_pressure_deviation = round(latest.sensors.oilPressureKpa - expected_pressure, 3)
+        load = 100.0 * (
+            estimator.loadWeights["throttle"] * throttle_norm
+            + estimator.loadWeights["rpm"] * rpm_norm
+            + estimator.loadWeights["fuelFlow"] * min(1.0, max(0.0, latest.sensors.fuelFlowLph / estimator.maxFuelFlowLph))
+        )
+        expected = expected_values(latest.sensors, load)
+        oil_pressure_deviation = round(latest.sensors.oilPressureKpa - expected.oil_pressure_kpa, 3)
+        oil_temp_deviation = round(latest.sensors.oilTempC - expected.oil_temp_c, 3)
+        coolant_temp_deviation = round(latest.sensors.coolantTempC - expected.coolant_temp_c, 3)
+        vibration_deviation = round(latest.sensors.vibrationMmS - expected.vibration_mm_s, 3)
     if profile is not None:
         if latest.sensors.injectionTimingDeg is not None:
             injection_deviation = round(
@@ -112,6 +125,13 @@ def build_derived_features(
         egtSpreadC=egt_spread,
         egtSlopeCPerMin=round(float(_slope_per_min(egt_history, window)), 3) if egt_history else None,
         oilPressureDeviationKpa=oil_pressure_deviation,
+        oilTempDeviationC=oil_temp_deviation,
+        coolantTempDeviationC=coolant_temp_deviation,
+        vibrationDeviationMmS=vibration_deviation,
+        expectedOilTempC=round(expected.oil_temp_c, 3) if expected else None,
+        expectedCoolantTempC=round(expected.coolant_temp_c, 3) if expected else None,
+        expectedOilPressureKpa=round(expected.oil_pressure_kpa, 3) if expected else None,
+        expectedVibrationMmS=round(expected.vibration_mm_s, 3) if expected else None,
         fuelFlowDeviationLph=fuel_flow_deviation,
         injectionTimingDeviationDeg=injection_deviation,
         alternatorVoltageMarginV=alternator_margin,

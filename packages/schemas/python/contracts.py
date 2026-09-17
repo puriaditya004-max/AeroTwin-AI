@@ -110,6 +110,13 @@ class DerivedFeatures(BaseModel):
     egtSpreadC: Optional[float] = None
     egtSlopeCPerMin: Optional[float] = None
     oilPressureDeviationKpa: Optional[float] = None
+    oilTempDeviationC: Optional[float] = None
+    coolantTempDeviationC: Optional[float] = None
+    vibrationDeviationMmS: Optional[float] = None
+    expectedOilTempC: Optional[float] = None
+    expectedCoolantTempC: Optional[float] = None
+    expectedOilPressureKpa: Optional[float] = None
+    expectedVibrationMmS: Optional[float] = None
     fuelFlowDeviationLph: Optional[float] = None
     injectionTimingDeviationDeg: Optional[float] = None
     alternatorVoltageMarginV: Optional[float] = None

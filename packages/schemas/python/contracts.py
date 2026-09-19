@@ -190,6 +190,13 @@ class FaultType(str, Enum):
     SENSOR_FAULT = "SENSOR_FAULT"
 
 
+class FaultSeverity(str, Enum):
+    INFO = "info"
+    WARNING = "warning"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
 class Contributor(BaseModel):
     feature: str
     contribution: float
@@ -206,6 +213,14 @@ class FaultPrediction(BaseModel):
     anomalyScore: float = Field(ge=0, le=1)
     contributors: list[Contributor]
     detectionDelayMs: Optional[float] = Field(default=None, ge=0)
+    componentId: Optional[str] = None
+    subsystem: Optional[str] = None
+    severity: Optional[FaultSeverity] = None
+    evidence: list[str] = Field(default_factory=list)
+    recommendedAction: Optional[str] = None
+    alternativePossibilities: list[str] = Field(default_factory=list)
+    requiresHumanConfirmation: Optional[bool] = None
+    operatingConditionOutOfRange: Optional[bool] = None
 
 
 # ---------------------------------------------------------------------------

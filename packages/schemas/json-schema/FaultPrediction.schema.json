@@ -36,6 +36,41 @@
       "type": "number",
       "minimum": 0,
       "description": "Optional. Time from fault injection/onset to this prediction, for latency evaluation on labeled scenarios."
+    },
+    "componentId": {
+      "type": "string",
+      "description": "Optional. Level-3 localization: most probable affected component/subsystem, e.g. 'oil-system'. Omitted when the classifier cannot reliably distinguish a component."
+    },
+    "subsystem": {
+      "type": "string",
+      "description": "Optional. Human-readable subsystem label paired with componentId, e.g. 'Lubrication'."
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["info", "warning", "high", "critical"],
+      "description": "Optional. Advisory severity derived from confidence + anomaly score. Absent when faultType is NONE."
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional. Human-readable evidence lines supporting the fault claim (e.g. 'Oil pressure below expected operating range')."
+    },
+    "recommendedAction": {
+      "type": "string",
+      "description": "Optional. Suggested next step for the operator/maintenance engineer."
+    },
+    "alternativePossibilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional. Other plausible explanations the model did not rule out (e.g. 'Oil pressure sensor drift')."
+    },
+    "requiresHumanConfirmation": {
+      "type": "boolean",
+      "description": "Optional. True whenever faultType is not NONE — this demonstrator never claims an autonomous, confirmed diagnosis."
+    },
+    "operatingConditionOutOfRange": {
+      "type": "boolean",
+      "description": "Optional. True when M2's operating-envelope check (altitude/ambient temperature) found the source TwinState outside its calibrated range, so this prediction's confidence is reduced accordingly."
     }
   }
 }

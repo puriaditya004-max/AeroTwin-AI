@@ -2,7 +2,7 @@ import numpy as np
 
 from app.contracts import DerivedFeatures, TelemetryFrame
 from app.settings import EngineProfile, EstimatorSettings
-from state.environment import expected_values
+from state.environment import expected_values, operating_envelope_reason_codes
 
 
 def _slope_per_min(values: list[float], window: list[TelemetryFrame]) -> float:
@@ -67,6 +67,8 @@ def build_derived_features(
     invalid_ratio = sum(1 for quality in sensor_quality.values() if quality.status.value == "OUT_OF_RANGE") / max(
         len(sensor_quality), 1
     )
+    envelope_reasons = operating_envelope_reason_codes(latest.sensors)
+    reason_codes.extend(envelope_reasons)
 
     cht_latest = latest.sensors.chtCylindersC or []
     egt_latest = latest.sensors.egtCylindersC or []
@@ -109,7 +111,7 @@ def build_derived_features(
         if latest.sensors.batteryVoltageV is not None:
             battery_margin = round(latest.sensors.batteryVoltageV - profile.electrical["batteryMinV"], 3)
 
-    confidence = max(0.0, min(1.0, 1.0 - (0.6 * missing_ratio) - (0.4 * invalid_ratio)))
+    confidence = max(0.0, min(1.0, 1.0 - (0.6 * missing_ratio) - (0.4 * invalid_ratio) - (0.15 * len(envelope_reasons))))
 
     return DerivedFeatures(
         rollingMeanRpm=round(float(np.mean(rpm_values)), 3),

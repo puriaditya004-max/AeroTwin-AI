@@ -184,6 +184,8 @@ export const ContributorSchema = z.object({
   contribution: z.number(),
 });
 
+export const FaultSeveritySchema = z.enum(["info", "warning", "high", "critical"]);
+
 export const FaultPredictionSchema = z.object({
   engineId: z.string(),
   missionId: z.string(),
@@ -195,6 +197,14 @@ export const FaultPredictionSchema = z.object({
   anomalyScore: z.number().min(0).max(1),
   contributors: z.array(ContributorSchema),
   detectionDelayMs: z.number().min(0).optional(),
+  componentId: z.string().optional(),
+  subsystem: z.string().optional(),
+  severity: FaultSeveritySchema.optional(),
+  evidence: z.array(z.string()).optional(),
+  recommendedAction: z.string().optional(),
+  alternativePossibilities: z.array(z.string()).optional(),
+  requiresHumanConfirmation: z.boolean().optional(),
+  operatingConditionOutOfRange: z.boolean().optional(),
 });
 
 export type FaultPrediction = z.infer<typeof FaultPredictionSchema>;

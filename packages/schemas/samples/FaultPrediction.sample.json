@@ -3,7 +3,7 @@
   "missionId": "MSN-OILPRESS-001",
   "correlationId": "corr-8f3a1c",
   "predictionTime": "2026-08-22T09:14:32.900Z",
-  "producerVersion": "fault-clf-1.0.0",
+  "producerVersion": "m4-fault@1.2.0-enriched",
   "faultType": "OIL_PRESSURE_DEGRADATION",
   "confidence": 0.87,
   "anomalyScore": 0.74,
@@ -12,5 +12,15 @@
     { "feature": "oilPressureKpa_rateOfChange", "contribution": 0.31 },
     { "feature": "oilTempC", "contribution": 0.09 }
   ],
-  "detectionDelayMs": 4200
+  "detectionDelayMs": 4200,
+  "componentId": "oil-system",
+  "subsystem": "Lubrication",
+  "severity": "high",
+  "evidence": [
+    "Oil pressure -38.2 kPa below the context-adjusted baseline"
+  ],
+  "recommendedAction": "Inspect lubrication system and verify oil pressure sensor calibration.",
+  "alternativePossibilities": ["Oil pressure sensor drift", "Temporary high-load condition"],
+  "requiresHumanConfirmation": true,
+  "operatingConditionOutOfRange": false
 }

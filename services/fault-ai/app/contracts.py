@@ -28,6 +28,7 @@ class DerivedFeatures(BaseModel):
     rollingStdVibration: float
     rateOfChangeOilTempCPerMin: float
     sampleWindowSeconds: float = Field(default=30.0, ge=0)
+    oilPressureDeviationKpa: Optional[float] = None
     oilTempDeviationC: Optional[float] = None
     coolantTempDeviationC: Optional[float] = None
     vibrationDeviationMmS: Optional[float] = None
@@ -35,6 +36,7 @@ class DerivedFeatures(BaseModel):
     expectedCoolantTempC: Optional[float] = None
     expectedOilPressureKpa: Optional[float] = None
     expectedVibrationMmS: Optional[float] = None
+    reasonCodes: list[str] = Field(default_factory=list)
 
 
 class TwinState(BaseModel):
@@ -68,6 +70,13 @@ class FaultType(str, Enum):
     SENSOR_FAULT = "SENSOR_FAULT"
 
 
+class FaultSeverity(str, Enum):
+    INFO = "info"
+    WARNING = "warning"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
 class Contributor(BaseModel):
     feature: str
     contribution: float
@@ -84,3 +93,11 @@ class FaultPrediction(BaseModel):
     anomalyScore: float = Field(ge=0, le=1)
     contributors: List[Contributor] = Field(default_factory=list)
     detectionDelayMs: Optional[float] = Field(default=None, ge=0)
+    componentId: Optional[str] = None
+    subsystem: Optional[str] = None
+    severity: Optional[FaultSeverity] = None
+    evidence: List[str] = Field(default_factory=list)
+    recommendedAction: Optional[str] = None
+    alternativePossibilities: List[str] = Field(default_factory=list)
+    requiresHumanConfirmation: Optional[bool] = None
+    operatingConditionOutOfRange: Optional[bool] = None

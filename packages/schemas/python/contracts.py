@@ -130,21 +130,14 @@ class DerivedFeatures(BaseModel):
     reasonCodes: list[str] = Field(default_factory=list)
 
 
-ThermalState = Literal["normal", "elevated", "critical"]
-LubricationState = Literal["healthy", "degraded", "critical"]
-CombustionState = Literal["stable", "unstable"]
-VibrationState = Literal["normal", "elevated", "severe"]
-OverallState = Literal["nominal", "degraded", "critical"]
-
-
 class SubsystemState(BaseModel):
-    """Discrete per-subsystem categorisation derived by M2 (demonstrator heuristics)."""
+    model_config = ConfigDict(extra="allow")
 
-    thermalState: ThermalState
-    lubricationState: LubricationState
-    combustionState: CombustionState
-    vibrationState: VibrationState
-    overallState: OverallState
+    thermalState: Literal["normal", "elevated", "critical"]
+    lubricationState: Literal["healthy", "degraded", "critical"]
+    combustionState: Literal["stable", "unstable"]
+    vibrationState: Literal["normal", "elevated", "severe"]
+    overallState: Literal["nominal", "degraded", "critical"]
     basis: Literal["context-baseline", "absolute-limits"] = "context-baseline"
     reasons: list[str] = Field(default_factory=list)
 
@@ -173,11 +166,11 @@ class TwinState(BaseModel):
 
 class M2EngineStateView(BaseModel):
     engineSpeed: float
-    thermalState: ThermalState
-    lubricationState: LubricationState
-    combustionState: CombustionState
-    vibrationState: VibrationState
-    overallState: OverallState
+    thermalState: Literal["normal", "elevated", "critical"]
+    lubricationState: Literal["healthy", "degraded", "critical"]
+    combustionState: Literal["stable", "unstable"]
+    vibrationState: Literal["normal", "elevated", "severe"]
+    overallState: Literal["nominal", "degraded", "critical"]
 
 
 class M2EstimatedValues(BaseModel):

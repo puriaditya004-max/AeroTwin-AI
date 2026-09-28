@@ -77,6 +77,25 @@
       "type": "number",
       "minimum": 0,
       "description": "Milliseconds between the source telemetry timestamp and this state being published."
+    },
+    "aircraftId": {
+      "type": "string",
+      "description": "Optional. Aircraft identifier (from the M1 frame's aircraftId, else the M2 default)."
+    },
+    "subsystemState": {
+      "type": "object",
+      "description": "Optional. Discrete subsystem categorisation derived by M2 from context-adjusted deviations and engine-profile limits.",
+      "required": ["thermalState", "lubricationState", "combustionState", "vibrationState", "overallState"],
+      "additionalProperties": true,
+      "properties": {
+        "thermalState": { "type": "string", "enum": ["normal", "elevated", "critical"] },
+        "lubricationState": { "type": "string", "enum": ["healthy", "degraded", "critical"] },
+        "combustionState": { "type": "string", "enum": ["stable", "unstable"] },
+        "vibrationState": { "type": "string", "enum": ["normal", "elevated", "severe"] },
+        "overallState": { "type": "string", "enum": ["nominal", "degraded", "critical"] },
+        "basis": { "type": "string", "enum": ["context-baseline", "absolute-limits"] },
+        "reasons": { "type": "array", "items": { "type": "string" } }
+      }
     }
   }
 }

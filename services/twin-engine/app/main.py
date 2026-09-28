@@ -12,6 +12,7 @@ except ImportError:  # pragma: no cover
 from app.processor import TwinProcessor
 from app.settings import get_settings
 import os
+from state.contract_view import build_m2_contract
 from storage.checkpoint import InMemoryCheckpointStore, RedisCheckpointStore
 
 
@@ -122,3 +123,27 @@ async def latest_mission_state(missionId: str):
     if state is None:
         raise HTTPException(status_code=404, detail=f"No TwinState found for mission {missionId}")
     return state
+
+
+def _to_contract(state):
+    try:
+        return build_m2_contract(state, default_aircraft_id=os.getenv("M2_AIRCRAFT_ID", "UAV-001"))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@app.get("/contract/latest")
+async def latest_contract():
+    """Latest digital-twin state in the external M2 contract shape."""
+    state = await read_latest()
+    if state is None:
+        raise HTTPException(status_code=404, detail="No TwinState has been produced yet")
+    return _to_contract(state)
+
+
+@app.get("/contract/{engineId}")
+async def latest_engine_contract(engineId: str):
+    state = await read_latest(engine_id=engineId)
+    if state is None:
+        raise HTTPException(status_code=404, detail=f"No TwinState found for engine {engineId}")
+    return _to_contract(state)

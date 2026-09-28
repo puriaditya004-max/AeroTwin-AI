@@ -4,6 +4,7 @@ from app.contracts import Margins, TelemetryFrame, TwinState
 from app.settings import EngineProfile, EstimatorSettings
 from state.features import build_derived_features
 from state.quality import assess_state_quality
+from state.subsystems import classify_subsystems
 
 
 def _clamp(value: float, low: float, high: float) -> float:
@@ -11,11 +12,19 @@ def _clamp(value: float, low: float, high: float) -> float:
 
 
 class TwinEstimator:
-    def __init__(self, settings: EstimatorSettings, window_seconds: int, stale_after_ms: int, profile: EngineProfile):
+    def __init__(
+        self,
+        settings: EstimatorSettings,
+        window_seconds: int,
+        stale_after_ms: int,
+        profile: EngineProfile,
+        aircraft_id: str = "UAV-001",
+    ):
         self.settings = settings
         self.window_seconds = window_seconds
         self.stale_after_ms = stale_after_ms
         self.profile = profile
+        self.aircraft_id = aircraft_id
 
     def estimate(self, frame: TelemetryFrame, window: list[TelemetryFrame]) -> TwinState:
         now = datetime.now(timezone.utc)
@@ -38,6 +47,10 @@ class TwinEstimator:
         )
         sync_lag_ms = max(0.0, (now - frame.timestamp).total_seconds() * 1000.0)
         state_quality = assess_state_quality(frame, now, self.stale_after_ms, len(window))
+        derived = build_derived_features(window, self.window_seconds, self.settings, self.profile)
+        subsystem_state = classify_subsystems(frame.sensors, margins, derived, self.profile)
+        # M1 may carry aircraftId as an extra frame field; otherwise use the configured default.
+        aircraft_id = (frame.model_extra or {}).get("aircraftId") or self.aircraft_id
 
         return TwinState(
             engineId=frame.engineId,
@@ -48,9 +61,11 @@ class TwinEstimator:
             producerVersion="m2-twin-engine@2.0.0",
             load=round(_clamp(load, 0.0, 100.0), 3),
             margins=margins,
-            derivedFeatures=build_derived_features(window, self.window_seconds, self.settings, self.profile),
+            derivedFeatures=derived,
             stateQuality=state_quality,
             syncLagMs=round(sync_lag_ms, 3),
             sensors=frame.sensors.model_dump(mode="json"),
             qualityFlag=frame.qualityFlag.value,
+            aircraftId=aircraft_id,
+            subsystemState=subsystem_state,
         )

@@ -1,3 +1,4 @@
+import os
 from pydantic import ValidationError
 import statistics
 
@@ -29,6 +30,7 @@ class TwinProcessor:
             settings.sync.primaryWindowSeconds,
             settings.sync.staleAfterMs,
             settings.engineProfile,
+            aircraft_id=os.getenv("M2_AIRCRAFT_ID", "UAV-001"),
         )
         self.checkpoint = checkpoint or InMemoryCheckpointStore()
         self._sync_lag_samples: list[float] = []

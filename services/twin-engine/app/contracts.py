@@ -7,7 +7,7 @@ run as an isolated Docker service without changing the shared contracts.
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -120,6 +120,25 @@ class DerivedFeatures(BaseModel):
     reasonCodes: list[str] = Field(default_factory=list)
 
 
+ThermalState = Literal["normal", "elevated", "critical"]
+LubricationState = Literal["healthy", "degraded", "critical"]
+CombustionState = Literal["stable", "unstable"]
+VibrationState = Literal["normal", "elevated", "severe"]
+OverallState = Literal["nominal", "degraded", "critical"]
+
+
+class SubsystemState(BaseModel):
+    """Discrete per-subsystem categorisation derived by M2 (demonstrator heuristics)."""
+
+    thermalState: ThermalState
+    lubricationState: LubricationState
+    combustionState: CombustionState
+    vibrationState: VibrationState
+    overallState: OverallState
+    basis: Literal["context-baseline", "absolute-limits"] = "context-baseline"
+    reasons: list[str] = Field(default_factory=list)
+
+
 class TwinState(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -134,3 +153,40 @@ class TwinState(BaseModel):
     derivedFeatures: DerivedFeatures
     stateQuality: StateQuality
     syncLagMs: Optional[float] = Field(default=None, ge=0)
+    aircraftId: Optional[str] = None
+    subsystemState: Optional[SubsystemState] = None
+
+
+# ---------------------------------------------------------------------------
+# M2 external contract view (aircraftId + state / estimatedValues / deviation)
+# ---------------------------------------------------------------------------
+
+class M2EngineStateView(BaseModel):
+    engineSpeed: float
+    thermalState: ThermalState
+    lubricationState: LubricationState
+    combustionState: CombustionState
+    vibrationState: VibrationState
+    overallState: OverallState
+
+
+class M2EstimatedValues(BaseModel):
+    expectedOilTemperature: Optional[float] = None
+    expectedOilPressure: Optional[float] = None
+    expectedVibration: Optional[float] = None
+
+
+class M2Deviation(BaseModel):
+    oilTemperature: Optional[float] = None
+    oilPressure: Optional[float] = None
+    vibration: Optional[float] = None
+
+
+class M2TwinContract(BaseModel):
+    """Digital-twin state contract handed to teammates (see M2 module guide, section 2.2)."""
+
+    aircraftId: str
+    engineId: str
+    state: M2EngineStateView
+    estimatedValues: M2EstimatedValues
+    deviation: M2Deviation

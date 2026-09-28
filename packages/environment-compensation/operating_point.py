@@ -1,6 +1,7 @@
-"""Operating point estimator and context-adjusted nominal baseline generator.
+"""Operating-point model: context-aware expected sensor baselines.
 
-Pure-Python, dependency-free. Shared by M2 (subsystem states) and M4 (fault fusion).
+Expected values depend on throttle (-> load), flight phase (cruise/climb/descent/takeoff),
+altitude and ambient temperature. Thermal sensors follow load; phase adds cooling-airflow offsets.
 """
 from __future__ import annotations
 
@@ -8,141 +9,154 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Mapping, Optional
 
-from .altitude_model import compensate_baseline
-from .ambient_model import compensate_thermal_baseline
+from . import altitude_model as alt
+from . import ambient_model as amb
+from .altitude_model import sensor_family
 
 N_CYLINDERS = 4
+CRUISE_LOAD_PCT = 70.0
 
 
 class FlightPhase(str, Enum):
-    IDLE = "IDLE"
     TAKEOFF = "TAKEOFF"
     CLIMB = "CLIMB"
     CRUISE = "CRUISE"
     DESCENT = "DESCENT"
 
 
-# Nominal standard deviation (1-sigma) expected under steady cruise
-SENSOR_SIGMA: Dict[str, float] = {
-    "rpm": 30.0,
-    "oil_temp_c": 3.0,
-    "coolant_temp_c": 3.0,
-    "oil_pressure_psi": 4.0,
-    "oil_pressure_kpa": 27.5,
-    "vibration_g": 0.35,
-    "vibration_mm_s": 0.8,
-    "fuel_flow_lph": 2.0,
-    "throttle_pct": 2.0,
-    "injection_timing_deg": 0.8,
+# Sea-level ISA cruise baselines (70 % load).
+CRUISE_BASELINES: Dict[str, float] = {
+    "oil_temp_c": 90.0,
+    "oil_pressure_psi": 60.0,
+    "coolant_temp_c": 85.0,
+    "vibration_g": 0.80,
+    "fuel_flow_lph": 22.0,
+    "injection_timing_deg": 12.0,
 }
-for i in range(1, N_CYLINDERS + 1):
-    SENSOR_SIGMA[f"cht_cyl_{i}"] = 6.0
-    SENSOR_SIGMA[f"egt_cyl_{i}"] = 18.0
+for _i in range(1, N_CYLINDERS + 1):
+    CRUISE_BASELINES[f"cht_cyl_{_i}"] = 190.0
+    CRUISE_BASELINES[f"egt_cyl_{_i}"] = 650.0
 
+# Baseline change per +1 % load relative to cruise.
+LOAD_SENSITIVITY: Dict[str, float] = {
+    "oil_temp_c": 0.25, "oil_pressure_psi": -0.03, "coolant_temp_c": 0.15, "vibration_g": 0.004,
+    "fuel_flow_lph": 0.31, "cht_cyl": 0.70, "egt_cyl": 2.0,
+}
 
-@dataclass
-class OperatingPoint:
-    rpm: float
-    throttle_pct: float
-    engine_load_pct: float
-    phase: FlightPhase
-    transient: bool = False
-    throttle_rate_pct_s: float = 0.0
+# Cooling-airflow / power-setting offsets by phase.
+PHASE_OFFSETS: Dict[FlightPhase, Dict[str, float]] = {
+    FlightPhase.CRUISE: {},
+    FlightPhase.CLIMB: {"cht_cyl": 10.0, "oil_temp_c": 2.0, "coolant_temp_c": 2.0},
+    FlightPhase.TAKEOFF: {"cht_cyl": 15.0, "oil_temp_c": 3.0, "coolant_temp_c": 3.0},
+    FlightPhase.DESCENT: {"cht_cyl": -8.0},
+}
+
+# 1-sigma normal scatter of (actual - expected) at the given operating point.
+SENSOR_SIGMA: Dict[str, float] = {
+    "oil_temp_c": 4.0, "oil_pressure_psi": 4.0, "coolant_temp_c": 3.0, "cht_cyl": 8.0, "egt_cyl": 25.0,
+    "vibration_g": 0.15, "fuel_flow_lph": 2.0, "injection_timing_deg": 0.5, "rpm": 60.0,
+    "engine_load_pct": 6.0, "manifold_pressure_inhg": 1.0,
+}
+
+# Tolerance widening while a throttle transient is settling (thermal lag, overshoot).
+TRANSIENT_SIGMA_SCALE: Dict[str, float] = {
+    "oil_temp_c": 2.0, "coolant_temp_c": 2.0, "cht_cyl": 2.0, "egt_cyl": 2.5, "vibration_g": 2.0,
+    "oil_pressure_psi": 1.5, "fuel_flow_lph": 2.5, "rpm": 2.5, "engine_load_pct": 2.5,
+    "manifold_pressure_inhg": 2.5,
+}
+
+TRANSIENT_RATE_PCT_S = 8.0
+TRANSIENT_STEP_PCT = 20.0
+TRANSIENT_WINDOW_S = 45.0
 
 
 def sensor_sigma(sensor: str) -> float:
-    """Return nominal standard deviation for a sensor."""
-    return SENSOR_SIGMA.get(sensor, 2.5)
+    return SENSOR_SIGMA.get(sensor_family(sensor), 1.0)
 
 
 def transient_sigma_scale(sensor: str) -> float:
-    """Scale factor applied to sensor sigma during transient conditions."""
-    if sensor in ("rpm", "throttle_pct", "fuel_flow_lph", "vibration_g", "vibration_mm_s"):
-        return 2.5
-    return 1.6
+    return TRANSIENT_SIGMA_SCALE.get(sensor_family(sensor), 1.0)
 
 
-def build_operating_point(
-    readings: Mapping[str, Optional[float]],
-    context: Optional[Mapping[str, float]] = None,
-) -> OperatingPoint:
-    """Infer the current operating point and flight phase."""
-    ctx = dict(context or {})
-    rpm = float(readings.get("rpm") or ctx.get("rpm") or 2400.0)
-    throttle = float(readings.get("throttle_pct") or ctx.get("throttle_pct") or 65.0)
-    load = float(readings.get("engine_load_pct") or ctx.get("engine_load_pct") or (0.6 * throttle + 0.4 * (rpm / 2800.0) * 100.0))
-    climb_rate = float(ctx.get("climb_rate_fpm") or 0.0)
-    throttle_rate = float(ctx.get("throttle_rate_pct_s") or 0.0)
-    transient = abs(throttle_rate) > 5.0 or bool(ctx.get("transient", False))
+@dataclass(frozen=True)
+class OperatingPoint:
+    phase: FlightPhase
+    throttle_pct: float
+    vertical_speed_fpm: float = 0.0
+    throttle_rate_pct_s: float = 0.0
+    transient: bool = False
 
-    if throttle < 20.0 and rpm < 1200.0:
-        phase = FlightPhase.IDLE
-    elif throttle > 90.0 and climb_rate > 300.0:
-        phase = FlightPhase.TAKEOFF
-    elif climb_rate > 300.0:
-        phase = FlightPhase.CLIMB
-    elif climb_rate < -300.0:
-        phase = FlightPhase.DESCENT
-    else:
-        phase = FlightPhase.CRUISE
 
-    return OperatingPoint(
-        rpm=rpm,
-        throttle_pct=throttle,
-        engine_load_pct=round(load, 2),
-        phase=phase,
-        transient=transient,
-        throttle_rate_pct_s=round(throttle_rate, 2),
+def classify_phase(vertical_speed_fpm: float, throttle_pct: float, altitude_agl_ft: Optional[float] = None) -> FlightPhase:
+    if vertical_speed_fpm >= 300 and throttle_pct >= 95 and altitude_agl_ft is not None and altitude_agl_ft < 1000:
+        return FlightPhase.TAKEOFF
+    if vertical_speed_fpm >= 300:
+        return FlightPhase.CLIMB
+    if vertical_speed_fpm <= -300:
+        return FlightPhase.DESCENT
+    return FlightPhase.CRUISE
+
+
+def detect_transient(
+    throttle_rate_pct_s: float = 0.0,
+    seconds_since_throttle_step: Optional[float] = None,
+    throttle_step_pct: float = 0.0,
+) -> bool:
+    """Transient while throttle is moving fast, or shortly after a large throttle step."""
+    if abs(throttle_rate_pct_s) >= TRANSIENT_RATE_PCT_S:
+        return True
+    return (
+        seconds_since_throttle_step is not None
+        and seconds_since_throttle_step <= TRANSIENT_WINDOW_S
+        and abs(throttle_step_pct) >= TRANSIENT_STEP_PCT
     )
 
 
-def expected_baselines(
-    op: OperatingPoint,
-    altitude_ft: float = 0.0,
-    oat_c: float = 15.0,
-) -> Dict[str, float]:
-    """Generate expected context-adjusted nominal baselines for all sensors."""
-    load = op.engine_load_pct
-    base_oil_temp = 75.0 + 0.35 * load
-    base_coolant_temp = 72.0 + 0.30 * load
-    base_oil_press_psi = 45.0 + 0.35 * load
-    base_oil_press_kpa = 310.0 + 2.4 * load
-    base_vib_g = 1.0 + 0.03 * load
-    base_vib_mm_s = 1.0 + 0.035 * load
-    base_fuel_flow = 10.0 + 0.45 * load
+def build_operating_point(readings: Mapping[str, float], context: Optional[Mapping[str, float]] = None) -> OperatingPoint:
+    ctx = context or {}
+    thr = readings.get("throttle_pct")
+    thr = 65.0 if thr is None else float(thr)
+    vs = float(ctx.get("vertical_speed_fpm", 0.0))
+    rate = float(ctx.get("throttle_rate_pct_s", 0.0))
+    return OperatingPoint(
+        phase=classify_phase(vs, thr, ctx.get("altitude_agl_ft")),
+        throttle_pct=thr,
+        vertical_speed_fpm=vs,
+        throttle_rate_pct_s=rate,
+        transient=detect_transient(rate, ctx.get("seconds_since_throttle_step"), float(ctx.get("throttle_step_pct", 0.0))),
+    )
 
-    baselines: Dict[str, float] = {
-        "rpm": float(op.rpm),
-        "throttle_pct": float(op.throttle_pct),
-        "engine_load_pct": float(load),
-        "fuel_flow_lph": round(base_fuel_flow, 2),
-        "oil_temp_c": round(compensate_thermal_baseline("oil_temp_c", base_oil_temp, oat_c), 2),
-        "coolant_temp_c": round(compensate_thermal_baseline("coolant_temp_c", base_coolant_temp, oat_c), 2),
-        "oil_pressure_psi": round(compensate_baseline("oil_pressure_psi", base_oil_press_psi, altitude_ft, oat_c), 2),
-        "oil_pressure_kpa": round(compensate_baseline("oil_pressure_kpa", base_oil_press_kpa, altitude_ft, oat_c), 2),
-        "vibration_g": round(base_vib_g, 3),
-        "vibration_mm_s": round(base_vib_mm_s, 3),
-        "injection_timing_deg": 12.0,
+
+def expected_load_pct(throttle_pct: float, pressure_altitude_ft: float, oat_c: Optional[float]) -> float:
+    return min(110.0, alt.compensate_baseline("engine_load_pct", 1.08 * throttle_pct, pressure_altitude_ft, oat_c))
+
+
+def expected_baselines(op: OperatingPoint, pressure_altitude_ft: float = 0.0, oat_c: Optional[float] = None) -> Dict[str, float]:
+    """Expected value of every diagnostic sensor at this operating point and environment."""
+    if oat_c is None:
+        oat_c = alt.isa_temperature_c(pressure_altitude_ft)
+    load = expected_load_pct(op.throttle_pct, pressure_altitude_ft, oat_c)
+    d_load = load - CRUISE_LOAD_PCT
+    out: Dict[str, float] = {
+        "rpm": 1000.0 + 21.5 * op.throttle_pct,
+        "engine_load_pct": load,
+        "manifold_pressure_inhg": alt.compensate_baseline(
+            "manifold_pressure_inhg", 29.92 * (0.35 + 0.65 * op.throttle_pct / 100.0), pressure_altitude_ft, oat_c
+        ),
     }
-
-    for i in range(1, N_CYLINDERS + 1):
-        cht_base = 135.0 + 0.60 * load
-        egt_base = 650.0 + 1.20 * load
-        cht_comp = compensate_thermal_baseline(f"cht_cyl_{i}", cht_base, oat_c)
-        egt_comp = compensate_baseline(f"egt_cyl_{i}", egt_base, altitude_ft, oat_c)
-        baselines[f"cht_cyl_{i}"] = round(cht_comp, 2)
-        baselines[f"egt_cyl_{i}"] = round(egt_comp, 2)
-
-    return baselines
+    offsets = PHASE_OFFSETS[op.phase]
+    for name, base in CRUISE_BASELINES.items():
+        fam = sensor_family(name)
+        v = base + LOAD_SENSITIVITY.get(fam, 0.0) * d_load + offsets.get(fam, 0.0)
+        v = alt.compensate_baseline(name, v, pressure_altitude_ft, oat_c)
+        if amb.is_thermal_sensor(name):
+            v = amb.compensate_thermal_baseline(name, v, oat_c, load / CRUISE_LOAD_PCT)
+        out[name] = v
+    return out
 
 
 __all__ = [
-    "N_CYLINDERS",
-    "FlightPhase",
-    "OperatingPoint",
-    "SENSOR_SIGMA",
-    "sensor_sigma",
-    "transient_sigma_scale",
-    "build_operating_point",
-    "expected_baselines",
+    "FlightPhase", "OperatingPoint", "CRUISE_BASELINES", "SENSOR_SIGMA", "N_CYLINDERS", "sensor_sigma",
+    "transient_sigma_scale", "classify_phase", "detect_transient", "build_operating_point",
+    "expected_load_pct", "expected_baselines",
 ]

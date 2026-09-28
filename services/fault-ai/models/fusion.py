@@ -291,84 +291,85 @@ def diagnose(readings, context=None) -> FusionResult:
 # ---------------------------------------------------------------------------
 # DecisionFusionPolicy for Pydantic runtime compatibility
 # ---------------------------------------------------------------------------
-from datetime import datetime, timezone
-from app.contracts import TwinState, FaultPrediction, FaultType, FaultSeverity, Contributor, StateQuality
+try:
+    from datetime import datetime, timezone
+    from app.contracts import TwinState, FaultPrediction, FaultType, FaultSeverity, Contributor, StateQuality
 
-FAULT_COMPONENT_MAP = {
-    FaultType.OVERHEATING: {
-        "componentId": "cooling-system",
-        "subsystem": "Cooling",
-        "recommendedAction": "Inspect cooling system airflow and coolant/oil temperature sensors.",
-        "alternativePossibilities": ["Temporary high-load or hot-ambient condition", "Temperature sensor drift"],
-    },
-    FaultType.OIL_PRESSURE_DEGRADATION: {
-        "componentId": "oil-system",
-        "subsystem": "Lubrication",
-        "recommendedAction": "Inspect lubrication system and verify oil pressure sensor calibration.",
-        "alternativePossibilities": ["Oil pressure sensor drift", "Temporary high-load condition"],
-    },
-    FaultType.VIBRATION_MISFIRE: {
-        "componentId": "combustion-drivetrain",
-        "subsystem": "Combustion / Vibration",
-        "recommendedAction": "Inspect for misfire/imbalance; verify vibration sensor mounting.",
-        "alternativePossibilities": ["Vibration sensor mounting looseness", "Transient throttle transient"],
-    },
-    FaultType.SENSOR_FAULT: {
-        "componentId": "sensor-array",
-        "subsystem": "Sensor Array",
-        "recommendedAction": "Verify sensor wiring/calibration before trusting downstream health/RUL outputs.",
-        "alternativePossibilities": ["Genuine engine fault masked by a failing sensor"],
-    },
-}
+    FAULT_COMPONENT_MAP = {
+        FaultType.OVERHEATING: {
+            "componentId": "cooling-system",
+            "subsystem": "Cooling",
+            "recommendedAction": "Inspect cooling system airflow and coolant/oil temperature sensors.",
+            "alternativePossibilities": ["Temporary high-load or hot-ambient condition", "Temperature sensor drift"],
+        },
+        FaultType.OIL_PRESSURE_DEGRADATION: {
+            "componentId": "oil-system",
+            "subsystem": "Lubrication",
+            "recommendedAction": "Inspect lubrication system and verify oil pressure sensor calibration.",
+            "alternativePossibilities": ["Oil pressure sensor drift", "Temporary high-load condition"],
+        },
+        FaultType.VIBRATION_MISFIRE: {
+            "componentId": "combustion-drivetrain",
+            "subsystem": "Combustion / Vibration",
+            "recommendedAction": "Inspect for misfire/imbalance; verify vibration sensor mounting.",
+            "alternativePossibilities": ["Vibration sensor mounting looseness", "Transient throttle transient"],
+        },
+        FaultType.SENSOR_FAULT: {
+            "componentId": "sensor-array",
+            "subsystem": "Sensor Array",
+            "recommendedAction": "Verify sensor wiring/calibration before trusting downstream health/RUL outputs.",
+            "alternativePossibilities": ["Genuine engine fault masked by a failing sensor"],
+        },
+    }
 
-IMPLAUSIBLE_TEMP_MARGIN_C = (-40.0, 60.0)
-IMPLAUSIBLE_PRESSURE_MARGIN_KPA = (-60.0, 150.0)
-IMPLAUSIBLE_VIBRATION_MARGIN_MM_S = (-15.0, 30.0)
-OOD_REASON_CODES = {"OUT_OF_RANGE_ALTITUDE", "OUT_OF_RANGE_AMBIENT_TEMP"}
+    IMPLAUSIBLE_TEMP_MARGIN_C = (-40.0, 60.0)
+    IMPLAUSIBLE_PRESSURE_MARGIN_KPA = (-60.0, 150.0)
+    IMPLAUSIBLE_VIBRATION_MARGIN_MM_S = (-15.0, 30.0)
+    OOD_REASON_CODES = {"OUT_OF_RANGE_ALTITUDE", "OUT_OF_RANGE_AMBIENT_TEMP"}
 
+    def _is_physically_implausible(latest_state: TwinState) -> bool:
+        margins = latest_state.margins
+        low, high = IMPLAUSIBLE_TEMP_MARGIN_C
+        if not (low <= margins.tempMarginC <= high):
+            return True
+        low, high = IMPLAUSIBLE_PRESSURE_MARGIN_KPA
+        if not (low <= margins.pressureMarginKpa <= high):
+            return True
+        low, high = IMPLAUSIBLE_VIBRATION_MARGIN_MM_S
+        if not (low <= margins.vibrationMarginMmS <= high):
+            return True
+        return False
 
-def _is_physically_implausible(latest_state: TwinState) -> bool:
-    margins = latest_state.margins
-    low, high = IMPLAUSIBLE_TEMP_MARGIN_C
-    if not (low <= margins.tempMarginC <= high):
-        return True
-    low, high = IMPLAUSIBLE_PRESSURE_MARGIN_KPA
-    if not (low <= margins.pressureMarginKpa <= high):
-        return True
-    low, high = IMPLAUSIBLE_VIBRATION_MARGIN_MM_S
-    if not (low <= margins.vibrationMarginMmS <= high):
-        return True
-    return False
+    def _build_pydantic_evidence(fault_type: FaultType, derived, margins) -> List[str]:
+        lines: List[str] = []
+        if fault_type == FaultType.OVERHEATING:
+            if derived.oilTempDeviationC is not None and derived.oilTempDeviationC > 8.0:
+                lines.append(f"Oil temperature {derived.oilTempDeviationC:+.1f} C above the context-adjusted baseline")
+            if derived.coolantTempDeviationC is not None and derived.coolantTempDeviationC > 8.0:
+                lines.append(f"Coolant temperature {derived.coolantTempDeviationC:+.1f} C above the context-adjusted baseline")
+        elif fault_type == FaultType.OIL_PRESSURE_DEGRADATION:
+            if derived.oilPressureDeviationKpa is not None:
+                lines.append(f"Oil pressure {derived.oilPressureDeviationKpa:+.1f} kPa below the context-adjusted baseline")
+        elif fault_type == FaultType.VIBRATION_MISFIRE:
+            if derived.vibrationDeviationMmS is not None:
+                lines.append(f"Vibration {derived.vibrationDeviationMmS:+.2f} mm/s above the context-adjusted baseline")
+        elif fault_type == FaultType.SENSOR_FAULT:
+            lines.append("Reported margin(s) fall outside any physically plausible range for this engine profile")
+        if not lines and fault_type != FaultType.NONE:
+            lines.append(f"Margins at detection: temp={margins.tempMarginC:.1f}C, pressure={margins.pressureMarginKpa:.1f}kPa, vibration={margins.vibrationMarginMmS:.1f}mm/s")
+        return lines
 
+    def _severity_for_pydantic(confidence: float, anomaly_score: float) -> FaultSeverity:
+        if confidence >= 0.85 and anomaly_score >= 0.70:
+            return FaultSeverity.CRITICAL
+        if confidence >= 0.70:
+            return FaultSeverity.HIGH
+        if confidence >= 0.60:
+            return FaultSeverity.WARNING
+        return FaultSeverity.INFO
 
-def _build_pydantic_evidence(fault_type: FaultType, derived, margins) -> List[str]:
-    lines: List[str] = []
-    if fault_type == FaultType.OVERHEATING:
-        if derived.oilTempDeviationC is not None and derived.oilTempDeviationC > 8.0:
-            lines.append(f"Oil temperature {derived.oilTempDeviationC:+.1f} C above the context-adjusted baseline")
-        if derived.coolantTempDeviationC is not None and derived.coolantTempDeviationC > 8.0:
-            lines.append(f"Coolant temperature {derived.coolantTempDeviationC:+.1f} C above the context-adjusted baseline")
-    elif fault_type == FaultType.OIL_PRESSURE_DEGRADATION:
-        if derived.oilPressureDeviationKpa is not None:
-            lines.append(f"Oil pressure {derived.oilPressureDeviationKpa:+.1f} kPa below the context-adjusted baseline")
-    elif fault_type == FaultType.VIBRATION_MISFIRE:
-        if derived.vibrationDeviationMmS is not None:
-            lines.append(f"Vibration {derived.vibrationDeviationMmS:+.2f} mm/s above the context-adjusted baseline")
-    elif fault_type == FaultType.SENSOR_FAULT:
-        lines.append("Reported margin(s) fall outside any physically plausible range for this engine profile")
-    if not lines and fault_type != FaultType.NONE:
-        lines.append(f"Margins at detection: temp={margins.tempMarginC:.1f}C, pressure={margins.pressureMarginKpa:.1f}kPa, vibration={margins.vibrationMarginMmS:.1f}mm/s")
-    return lines
-
-
-def _severity_for_pydantic(confidence: float, anomaly_score: float) -> FaultSeverity:
-    if confidence >= 0.85 and anomaly_score >= 0.70:
-        return FaultSeverity.CRITICAL
-    if confidence >= 0.70:
-        return FaultSeverity.HIGH
-    if confidence >= 0.60:
-        return FaultSeverity.WARNING
-    return FaultSeverity.INFO
+except ImportError:
+    pass
 
 
 class DecisionFusionPolicy:
